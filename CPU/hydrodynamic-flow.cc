@@ -19,6 +19,7 @@
 #include <cmath>
 #include <cstdio>
 #include <iostream>
+#include <iomanip>
 #include "common.hpp"
 
 #define SWAP(x, y) (x ^= y ^= x ^= y);
@@ -34,7 +35,7 @@
 #define INDEXP(x, y) ((y)*STRIDE+ (x))
 #define SQR(x) ((x) * (x))
 #define nu 0.1f
-#define Dtolerance 0.05f
+#define Dtolerance 0.0001f
 
 
 /*
@@ -97,30 +98,50 @@ T delta_P(T Dij, T beta)
 }
 
 template <typename T, typename BoundaryCond>
-void update_uv(T const *uc, T const *vc, T const *P, T *un, T *vn, T dt, T dx, T dy, BoundaryCond bound)
+void update_boundary(T *uc, T *vc, BoundaryCond bound)
 {
     int i, j;
     for (j = 0; j <= HEIGHT; ++j) {
-        for (i = 0; i <= WIDTH; ++i) {
-            if (bound.isInFlowBoundary(i, j)) {
-                // Velocity at inflow boundary is set to initial value
-                un[INDEXU(i, j)] = bound.inflowU();
-                vn[INDEXU(i, j)] = bound.inflowV();
-            } else if (bound.isOutFlowBoundary(i, j)) {
-                // Velocity at outflow boundary is set to velocity of the
-                // neighboring upstream cell
-                un[INDEXU(i, j)] = un[INDEXU(i-1, j)];
-                vn[INDEXU(i, j)] = vn[INDEXV(i-1, j)];
-            } else if (bound.isFloorBoundary(i, j)) {
-                // periodic boundary condition
-                // TODO: set to new velocity of ceiling cell
-                un[INDEXU(i, j)] = uc[INDEXU(i, HEIGHT-1)];
-                vn[INDEXU(i, j)] = vc[INDEXV(i, HEIGHT-1)];
-            } else if (bound.isCeilingBoundary(i, j)) {
-                // periodic boundary condition
-                un[INDEXU(i, j)] = un[INDEXU(i, 1)];
-                vn[INDEXU(i, j)] = vn[INDEXV(i, 1)];
-            } else if (bound.isObstace(i, j)) {
+        uc[INDEXU(0, j)] = bound.inflowU();
+        vc[INDEXV(0, j)] = bound.inflowV();
+        uc[INDEXU(WIDTH, j)] = uc[INDEXU(WIDTH-1, j)];
+        vc[INDEXV(WIDTH, j)] = vc[INDEXV(WIDTH-1, j)];
+    }
+    for (i = 1; i <= WIDTH-1; ++i) {
+        uc[INDEXU(i, 0)] = uc[INDEXU(i, HEIGHT-1)];
+        vc[INDEXV(i, 0)] = vc[INDEXU(i, HEIGHT-1)];
+
+        uc[INDEXU(i, HEIGHT)] = uc[INDEXU(i, 1)];
+        vc[INDEXV(i, HEIGHT)] = vc[INDEXV(i, 1)];
+    }
+}
+
+template <typename T, typename BoundaryCond>
+void update_uv(T const *uc, T const *vc, T const *P, T *un, T *vn, T dt, T dx, T dy, BoundaryCond bound)
+{
+    int i, j;
+    for (j = 1; j < HEIGHT; ++j) {
+        for (i = 1; i < WIDTH; ++i) {
+            // if (bound.isInFlowBoundary(i, j)) {
+            //     // Velocity at inflow boundary is set to initial value
+            //     un[INDEXU(i, j)] = bound.inflowU();
+            //     vn[INDEXU(i, j)] = bound.inflowV();
+            // } else if (bound.isOutFlowBoundary(i, j)) {
+            //     // Velocity at outflow boundary is set to velocity of the
+            //     // neighboring upstream cell
+            //     un[INDEXU(i, j)] = uc[INDEXU(i-1, j)];
+            //     vn[INDEXU(i, j)] = vc[INDEXV(i-1, j)];
+            // } else if (bound.isFloorBoundary(i, j)) {
+            //     // periodic boundary condition
+            //     // TODO: set to new velocity of ceiling cell
+            //     un[INDEXU(i, j)] = uc[INDEXU(i, HEIGHT-1)];
+            //     vn[INDEXU(i, j)] = vc[INDEXV(i, HEIGHT-1)];
+            // } else if (bound.isCeilingBoundary(i, j)) {
+            //     // periodic boundary condition
+            //     un[INDEXU(i, j)] = uc[INDEXU(i, 1)];
+            //     vn[INDEXU(i, j)] = vc[INDEXV(i, 1)];
+            // } else if (bound.isObstace(i, j)) {
+            if (bound.isObstace(i, j)) {
                 // zero velocity
                 un[INDEXU(i, j)] = 0;
                 vn[INDEXU(i, j)] = 0;
@@ -134,6 +155,7 @@ void update_uv(T const *uc, T const *vc, T const *P, T *un, T *vn, T dt, T dx, T
             }
         }
     }
+    update_boundary(un, vn, bound);
 }
 
 template <typename T, typename BoundaryCond>
@@ -143,22 +165,26 @@ void time_step(T const *uc, T const *vc, T *P, T *un, T *vn, T dt, T dx, T dy, T
 
     T D, delta_P;
     bool incompressible = false;
+    int iteration = 0;
     do {
         incompressible = true;
+        std::cout << "Iteration " << ++iteration << '\r';
         for (int j = 0; j <= HEIGHT; ++j) {
             for (int i = 0; i <= WIDTH; ++i) {
                 if (bound.isInFlowBoundary(i, j)) {
+                    //P[INDEXP(i, j)] = P[INDEXP(i+1, j)];
                 } else if (bound.isOutFlowBoundary(i, j)) {
-                    P[INDEXP(i, j)] = P[INDEXP(i-1, j)];
+                    //P[INDEXP(i, j)] = P[INDEXP(i-1, j)];
                 } else if (bound.isFloorBoundary(i, j)) {
+                    //P[INDEXP(i, j)] = P[INDEXP(HEIGHT - 1, j)];
                 } else if (bound.isCeilingBoundary(i, j)) {
-                    P[INDEXP(i, j)] = P[INDEXP(i, 1)];
+                    //P[INDEXP(i, j)] = P[INDEXP(i, 1)];
                 } else if (bound.isObstace(i, j)) {
-                    P[INDEXP(i, j)] = 0;
+                    //P[INDEXP(i, j)] = 0;
                 } else {
-                    D = 1/dx * (uc[INDEXU(i+1,j)] - uc[INDEXU(i,j)])
-                        +1/dy * (vc[INDEXV(i,j+1)] - vc[INDEXV(i,j)]);
-                    if (D > Dtolerance) {
+                    D = 1/dx * (un[INDEXU(i+1,j)] - un[INDEXU(i,j)])
+                        +1/dy * (vn[INDEXV(i,j+1)] - vn[INDEXV(i,j)]);
+                    if (std::fabs(D) > Dtolerance) {
 //                        if (D > 1.5) {
 //                            std::cout << i << ", " << j << '\n';
 //                            std::exit(-1);
@@ -176,6 +202,7 @@ void time_step(T const *uc, T const *vc, T *P, T *un, T *vn, T dt, T dx, T dy, T
             // TODO: Inflow, Floor boundaries
         }
     } while (!incompressible);
+    std::cout << '\n';
 }
 
 template <typename T, typename BoundaryCond>
@@ -195,14 +222,31 @@ void initialize(T* &ucurrent, T* &vcurrent, T* &unew, T* &vnew, T* &P, BoundaryC
 }
 
 template <typename T>
+void exportValue(T const *v)
+{
+    for (int j = HEIGHT; j >= 0; --j) {
+        for (int i = 0; i <= WIDTH; ++i) {
+            std::cout << std::setw(5) << v[j*STRIDE+i] << ' ';
+        }
+        std::cout << '\n';
+    }
+}
+
+template <typename T>
 void print_velocity(T const *uc, T const *vc, int index)
 {
     char name[20];
     std::cout << "Step " << index << '\n';
+    std::cout << "u\n";
     std::snprintf(name, 19, "uc%04d.pgm", index);
     exportPixmap(uc, WIDTH, HEIGHT, STRIDE, name);
+    //exportValue(uc);
+
+    std::cout << "\nv\n";
     std::snprintf(name, 19, "vc%04d.pgm", index);
     exportPixmap(vc, WIDTH, HEIGHT, STRIDE, name);
+    //exportValue(vc);
+    //std::cout << "\n\n";
 }
 
 template <typename T, typename BoundaryCond>
