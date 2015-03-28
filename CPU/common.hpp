@@ -25,7 +25,7 @@ void exportPixmap(T const *c, std::size_t width, std::size_t height, std::size_t
 
     for (int j = height; j >= 0; --j) {
         for (std::size_t i = 0; i <= width; ++i) {
-            printColor(ofs, c[j*stride + i]);
+            printColor(ofs, std::fabs(c[j*stride + i]));
         }
     }
 
@@ -36,6 +36,33 @@ void exportPixmap(T const *c, std::size_t width, std::size_t height, std::size_t
 //    }
     ofs.close();
 }
+
+template <typename T>
+void exportMatlab(T const *c, std::size_t width, std::size_t height, std::size_t stride, char const *filename)
+{
+    std::ofstream ofs(filename);
+//    ofs << "# name: u\n"
+//        << "# type: matrix\n"
+//        << "# rows: " << HEIGHT+1 << '\n'
+//        << "# columns: " << WIDTH+1 << '\n';
+    for (std::size_t j = 0; j <= height; ++j) {
+        for (std::size_t i = 0; i <= width; ++i) {
+            ofs << c[j*stride+i] << " ";
+        }
+        ofs << '\n';
+    }
+}
+
+//template <typename T>
+//void exportValue(T const *v)
+//{
+//    for (int j = HEIGHT; j >= 0; --j) {
+//        for (int i = 0; i <= WIDTH; ++i) {
+//            std::cout << std::setw(5) << v[j*STRIDE+i] << ' ';
+//        }
+//        std::cout << '\n';
+//    }
+//}
 
 template <typename T>
 T stddev(T const *c1, T const *c2, std::size_t width, std::size_t height) {
