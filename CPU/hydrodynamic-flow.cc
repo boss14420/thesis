@@ -91,14 +91,8 @@ void DFv(T const *uc, T const *vc, T const *P, T dx, T dy, int i, int j, T &Dv)
                 +(vc[INDEXV(i+1,j)] - 2*vc[INDEXV(i,j)] + vc[INDEXV(i-1,j)])/(dy*dy) );
 }
 
-template <typename T>
-T delta_P(T Dij, T beta)
-{
-    return -beta * Dij;
-}
-
 template <typename T, typename BoundaryCond>
-void update_boundary(T *uc, T *vc, BoundaryCond bound)
+void update_boundary(T *uc, T *vc, T *P, BoundaryCond bound)
 {
     int i, j;
     for (j = 0; j <= HEIGHT; ++j) {
@@ -106,13 +100,20 @@ void update_boundary(T *uc, T *vc, BoundaryCond bound)
         vc[INDEXV(0, j)] = bound.inflowV();
         uc[INDEXU(WIDTH, j)] = uc[INDEXU(WIDTH-1, j)];
         vc[INDEXV(WIDTH, j)] = vc[INDEXV(WIDTH-1, j)];
+        P[INDEXP(WIDTH, j)] = P[INDEXP(WIDTH-1,j)];
     }
     for (i = 1; i <= WIDTH-1; ++i) {
         uc[INDEXU(i, 0)] = uc[INDEXU(i, HEIGHT-1)];
         vc[INDEXV(i, 0)] = vc[INDEXU(i, HEIGHT-1)];
+        P[INDEXP(i, 0)] = P[INDEXP(i, HEIGHT-1)];
+//        uc[INDEXU(i, 0)] = 0;//uc[INDEXU(i, 1)];
+//        vc[INDEXV(i, 0)] = 0;//vc[INDEXU(i, 1)];
 
         uc[INDEXU(i, HEIGHT)] = uc[INDEXU(i, 1)];
         vc[INDEXV(i, HEIGHT)] = vc[INDEXV(i, 1)];
+        P[INDEXV(i, HEIGHT)] = P[INDEXV(i, 1)];
+//        uc[INDEXU(i, HEIGHT)] = 0;// uc[INDEXU(i, HEIGHT-1)];
+//        vc[INDEXV(i, HEIGHT)] = 0;// vc[INDEXV(i, HEIGHT-1)];
     }
 }
 
@@ -155,13 +156,13 @@ void update_uv(T const *uc, T const *vc, T const *P, T *un, T *vn, T dt, T dx, T
             }
         }
     }
-    update_boundary(un, vn, bound);
 }
 
 template <typename T, typename BoundaryCond>
 void time_step(T const *uc, T const *vc, T *P, T *un, T *vn, T dt, T dx, T dy, T beta, BoundaryCond bound)
 {
     update_uv(uc, vc, P, un, vn, dt, dx, dy, bound);
+    update_boundary(un, vn, P, bound);
 
     T D, delta_P;
     bool incompressible = false;
@@ -169,17 +170,9 @@ void time_step(T const *uc, T const *vc, T *P, T *un, T *vn, T dt, T dx, T dy, T
     do {
         incompressible = true;
         std::cout << "Iteration " << ++iteration << '\r';
-        for (int j = 0; j <= HEIGHT; ++j) {
-            for (int i = 0; i <= WIDTH; ++i) {
-                if (bound.isInFlowBoundary(i, j)) {
-                    //P[INDEXP(i, j)] = P[INDEXP(i+1, j)];
-                } else if (bound.isOutFlowBoundary(i, j)) {
-                    //P[INDEXP(i, j)] = P[INDEXP(i-1, j)];
-                } else if (bound.isFloorBoundary(i, j)) {
-                    //P[INDEXP(i, j)] = P[INDEXP(HEIGHT - 1, j)];
-                } else if (bound.isCeilingBoundary(i, j)) {
-                    //P[INDEXP(i, j)] = P[INDEXP(i, 1)];
-                } else if (bound.isObstace(i, j)) {
+        for (int j = 1; j < HEIGHT; ++j) {
+            for (int i = 1; i < WIDTH; ++i) {
+                if (bound.isObstace(i, j)) {
                     //P[INDEXP(i, j)] = 0;
                 } else {
                     D = 1/dx * (un[INDEXU(i+1,j)] - un[INDEXU(i,j)])
@@ -199,9 +192,9 @@ void time_step(T const *uc, T const *vc, T *P, T *un, T *vn, T dt, T dx, T dy, T
                     }
                 }
             }
-            // TODO: Inflow, Floor boundaries
         }
     } while (!incompressible);
+    update_boundary(un, vn, P, bound);
     std::cout << '\n';
 }
 
