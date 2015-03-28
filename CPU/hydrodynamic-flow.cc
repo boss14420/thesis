@@ -123,35 +123,61 @@ void update_uv(T const *uc, T const *vc, T const *P, T *un, T *vn, T dt, T dx, T
     int i, j;
     for (j = 1; j < HEIGHT; ++j) {
         for (i = 1; i < WIDTH; ++i) {
-            // if (bound.isInFlowBoundary(i, j)) {
-            //     // Velocity at inflow boundary is set to initial value
-            //     un[INDEXU(i, j)] = bound.inflowU();
-            //     vn[INDEXU(i, j)] = bound.inflowV();
-            // } else if (bound.isOutFlowBoundary(i, j)) {
-            //     // Velocity at outflow boundary is set to velocity of the
-            //     // neighboring upstream cell
-            //     un[INDEXU(i, j)] = uc[INDEXU(i-1, j)];
-            //     vn[INDEXU(i, j)] = vc[INDEXV(i-1, j)];
-            // } else if (bound.isFloorBoundary(i, j)) {
-            //     // periodic boundary condition
-            //     // TODO: set to new velocity of ceiling cell
-            //     un[INDEXU(i, j)] = uc[INDEXU(i, HEIGHT-1)];
-            //     vn[INDEXU(i, j)] = vc[INDEXV(i, HEIGHT-1)];
-            // } else if (bound.isCeilingBoundary(i, j)) {
-            //     // periodic boundary condition
-            //     un[INDEXU(i, j)] = uc[INDEXU(i, 1)];
-            //     vn[INDEXU(i, j)] = vc[INDEXV(i, 1)];
-            // } else if (bound.isObstace(i, j)) {
             if (bound.isObstace(i, j)) {
                 // zero velocity
                 un[INDEXU(i, j)] = 0;
                 vn[INDEXU(i, j)] = 0;
             } else {
-                float Du, Dv;
-                DFu(uc, vc, P, dx, dy, i, j, Du);
+                T Du, Dv;
+                T uim12j    = uc[INDEXU(i-1,j)];        // u(i-1/2, j)
+                T uip12j    = uc[INDEXU(i, j)];         // u(i+1/2, j)
+                T uip32j    = uc[INDEXU(i+1, j)];       // u(i+3/2, j)
+                T uip12jp1  = uc[INDEXU(i, j+1)];       // u(i+1/2, j+1)
+                T uip12jm1  = uc[INDEXU(i, j-1)];       // u(i+1/2, j-1)
+                T uim12jp1  = uc[INDEXU(i-1, j+1)];     // u(i-1/2, j+1)
+
+                T vijp12    = vc[INDEXV(i, j)];         // v(i, j+1/2)
+                T vijp32    = vc[INDEXP(i, j+1)];       // v(i, j+3/2);
+                T vijm12    = vc[INDEXV(i, j-1)];       // v(i, j-1/2)
+                T vip1jp12  = vc[INDEXV(i+1, j)];       // v(i+1, j+1/2)
+                T vip1jm12  = vc[INDEXV(i+1, j-1)];     // v(i+1, j-1/2)
+                T vim1jp12  = vc[INDEXV(i-1, j)];       // v(i-1, j+1/2);
+
+
+                // Du
+                T uij       = .5 * (uip12j + uim12j);
+                T uip1j     = .5 * (uip32j + uip12j);
+
+                Du = -1/dx * (uip1j*uip1j - uij*uij);
+
+                // uv(i+1/2, j+1/2)
+                T uvip12jp12 = .5*(uip12j + uip12jp1) * .5*(vip1jp12 + vijp12);
+                // u(i+1/2, j+1/2)
+                T uvip12jm12 = .5*(uip12jm1 + uip12j) * .5*(vip1jm12 + vijm12);
+
+                Du += -1/dy * (uvip12jp12 - uvip12jm12);
+                Du += -1/dx*(P[INDEXP(i,j)] - P[INDEXP(i-1,j)]);
+                Du += nu*( (uip32j - 2*uip12j + uim12j) / (dx*dx)
+                          +(uip12jp1 - 2*uip12j + uip12jm1) / (dy*dy) );
+
+//                DFu(uc, vc, P, dx, dy, i, j, Du);
                 un[INDEXU(i, j)] = uc[INDEXU(i, j)] + dt * Du;
 
-                DFv(uc, vc, P, dx, dy, i, j, Dv);
+
+                // Dv
+                T vij       = .5 * (vijp12 + vijm12);       // v(i, j)
+                T vijp1     = .5 * (vijp32 + vijp12);       // v(i, j+1)
+
+                Dv = -1/dy * (vijp1*vijp1 - vij*vij);
+
+                // uv(i-1/2, j+1/2)
+                T uvim12jp12 = .5*(uim12j + uim12jp1) * .5*(vim1jp12 + vijp12);
+                Dv += -1/dx * (uvip12jm12 - uvim12jp12);
+                Dv += -1/dy * (P[INDEXP(i, j)] - P[INDEXP(i, j-1)]);
+                Dv += nu*( (vijp32 - 2*vijp12 + vijm12) / (dy*dy)
+                          +(vip1jp12 - 2*vijp12 + vim1jp12) / (dx*dx) );
+
+//                DFv(uc, vc, P, dx, dy, i, j, Dv);
                 vn[INDEXV(i, j)] = vc[INDEXV(i, j)] + dt * Dv;
             }
         }
