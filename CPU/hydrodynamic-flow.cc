@@ -24,9 +24,9 @@
 
 #define SWAP(x, y) (x ^= y ^= x ^= y);
 
-#define STRIDE 128
-#define WIDTH 100
-#define HEIGHT 100
+#define STRIDE 256
+#define WIDTH 200
+#define HEIGHT 200
 //#define dx .01f
 //#define dy .01f
 //#define dt .01f
@@ -35,7 +35,7 @@
 #define INDEXP(x, y) ((y)*STRIDE+ (x))
 #define SQR(x) ((x) * (x))
 #define nu 0.1f
-#define Dtolerance 0.0001f
+#define Dtolerance 0.01f
 
 
 /*
@@ -300,10 +300,10 @@ void flow(T total_time, T print_step, T dt, T dx, T dy, T beta0, BoundaryCond bo
 
 int main()
 {
-    float total_time = 2.0, print_step = 0.1;
-    SimpleBoundary<float> sb { 25, 80, 25, 50, 1.0f, 0.0f };
-    float dx = 0.01, dy = 0.01, dt = 0.0001;
+    SimpleBoundary<float> sb { 25, 50, 0, 50, 1.f, 0.0f };
+    float dx = .01, dy = .01, dt = .00001;
+    float total_time = 4000*dt, print_step = 1000*dt;
     float beta0 = 1.7f;
 
-    flow(total_time, print_step, dt, dx, dy, beta0, sb);
+    flow<double, decltype(sb)>(total_time, print_step, dt, dx, dy, beta0, sb);
 }
