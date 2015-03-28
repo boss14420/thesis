@@ -241,31 +241,37 @@ void initialize(T* &ucurrent, T* &vcurrent, T* &unew, T* &vnew, T* &P, BoundaryC
 }
 
 template <typename T>
-void exportValue(T const *v)
-{
-    for (int j = HEIGHT; j >= 0; --j) {
-        for (int i = 0; i <= WIDTH; ++i) {
-            std::cout << std::setw(5) << v[j*STRIDE+i] << ' ';
-        }
-        std::cout << '\n';
-    }
-}
-
-template <typename T>
 void print_velocity(T const *uc, T const *vc, int index)
 {
     char name[20];
     std::cout << "Step " << index << '\n';
-    std::cout << "u\n";
+
+    T const *u = uc, *v = vc;
+//    T *u = new T[STRIDE*STRIDE];
+//    T *v = new T[STRIDE*STRIDE];
+//    for (int j = 0; j < HEIGHT; ++j)
+//        for (int i = 0; i < WIDTH; ++i) {
+//            u[INDEXU(i, j)] = .5 * (uc[INDEXU(i, j)] + uc[INDEXU(i+1, j)]);
+//            v[INDEXU(i, j)] = .5 * (vc[INDEXU(i, j)] + vc[INDEXU(i, j+1)]);
+//        }
+
+//    std::cout << "u\n";
     std::snprintf(name, 19, "uc%04d.pgm", index);
-    exportPixmap(uc, WIDTH, HEIGHT, STRIDE, name);
+    exportPixmap(u, WIDTH, HEIGHT, STRIDE, name);
+    std::snprintf(name, 19, "uc%04d.mat", index);
+    exportMatlab(u, WIDTH, HEIGHT, STRIDE, name);
     //exportValue(uc);
 
-    std::cout << "\nv\n";
+//    std::cout << "\nv\n";
     std::snprintf(name, 19, "vc%04d.pgm", index);
-    exportPixmap(vc, WIDTH, HEIGHT, STRIDE, name);
+    exportPixmap(v, WIDTH, HEIGHT, STRIDE, name);
+    std::snprintf(name, 19, "vc%04d.mat", index);
+    exportMatlab(v, WIDTH, HEIGHT, STRIDE, name);
     //exportValue(vc);
     //std::cout << "\n\n";
+
+//    delete[] u;
+//    delete[] v;
 }
 
 template <typename T, typename BoundaryCond>
