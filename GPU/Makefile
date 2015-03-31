@@ -7,7 +7,7 @@ CXX = g++
 #CXXFLAGS_DEBUG = $(CXXFLAGS_BASIC) -g
 #CXXFLAGS_RELEASE = $(CXXFLAGS_BASIC) -O3 -march=native
 #CXXFLAGS = $(CXXFLAGS_RELEASE)
-CXXFLAGS ?= -g
+CXXFLAGS ?=
 
 LIBS ?=
 INCLUDES ?=
@@ -16,14 +16,16 @@ INCLUDES ?=
 
 ALL_CXXFLAGS =
 #CCFLAGS = -ccbin $(GCC) -m64
-CCFLAGS = -ccbin $(CXX) -m64
+CCFLAGS = -ccbin $(CXX) -m64 --device-debug -g
 ALL_CXXFLAGS += $(CCFLAGS)
 ifneq (,$(CXXFLAGS))
     ALL_CXXFLAGS += -Xcompiler $(CXXFLAGS)
 endif
 
-GENCODE_SM20    := -gencode arch=compute_20,code=sm_20
-GENCODE_SM30    := -gencode arch=compute_30,code=sm_30 -gencode arch=compute_35,code=\"sm_35,compute_35\" -dc
+#GENCODE_SM20    := -gencode arch=compute_20,code=sm_20
+# GENCODE_SM30    := -gencode arch=compute_30,code=sm_30 -gencode arch=compute_35,code=\"sm_35,compute_35\" -dc
+GENCODE_SM30    := -gencode arch=compute_30,code=sm_30
+#GENCODE_SM30    := -gencode arch=compute_35,code=\"sm_35,compute_35\" -dc
 GENCODE_FLAGS   := $(GENCODE_SM20) $(GENCODE_SM30)
 
 #LDFLAGS = -locelot
