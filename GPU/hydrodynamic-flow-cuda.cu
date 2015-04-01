@@ -27,6 +27,12 @@
 #define STRIDE 128
 #define WIDTH 100
 #define HEIGHT 100
+
+#define OBSTACLE_MIN_X 25
+#define OBSTACLE_MAX_X 40
+#define OBSTACLE_MIN_Y 10
+#define OBSTACLE_MAX_Y 10
+
 //#define dx .01f
 //#define dy .01f
 //#define dt .01f
@@ -80,10 +86,10 @@ public:
 
     __host__ __device__ ~SimpleBoundary() {}
 
-    bool isInFlowBoundary(int i, int j) const { return i == 0; }
-    bool isOutFlowBoundary(int i, int j) const { return i == WIDTH; }
-    bool isFloorBoundary(int i, int j) const { return j == 0; }
-    bool isCeilingBoundary(int i, int j) const { return j == HEIGHT; }
+    __device__ bool isInFlowBoundary(int i, int j) const { return i == 0; }
+    __device__ bool isOutFlowBoundary(int i, int j) const { return i == WIDTH; }
+    __device__ bool isFloorBoundary(int i, int j) const { return j == 0; }
+    __device__ bool isCeilingBoundary(int i, int j) const { return j == HEIGHT; }
 
     __device__ bool isObstacle(int i, int j) const {
         return x0 <= i && i <= x1 && y0 <= j && j <= y1;
@@ -275,7 +281,7 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn, T dt, T dx, T dy, 
 }
 
 template <typename T, typename BoundaryCond>
-void time_step(T const *uc, T const *vc, T *P, T *un, T *vn, T dt, T dx, T dy, T beta, BoundaryCond bound)
+void time_step(T const *uc, T const *vc, T *P, T *un, T *vn, T dt, T dx, T dy, T beta, BoundaryCond &bound)
 {
     update_uv<<<dimGrid, dimBlock>>>(uc, vc, P, un, vn, dt, dx, dy, bound);
     update_boundary<<<dimGrid2, dimBlock>>>(un, vn, P, bound);
@@ -370,7 +376,7 @@ void print_velocity(T const *uc, T const *vc, int index)
 }
 
 template <typename T, typename BoundaryCond>
-void flow(T total_time, T print_step, T dt, T dx, T dy, T beta0, BoundaryCond bound)
+void flow(T total_time, T print_step, T dt, T dx, T dy, T beta0, BoundaryCond &bound)
 {
     T *uc, *vc, *un, *vn, *P;
     T *huc, *hvc, *hP;
@@ -401,7 +407,9 @@ void flow(T total_time, T print_step, T dt, T dx, T dy, T beta0, BoundaryCond bo
 
 int main()
 {
-    SimpleBoundary<float> sb ( 25, 50, 10, 40, 1.f, 0.0f );
+    SimpleBoundary<float> sb ( OBSTACLE_MIN_X, OBSTACLE_MAX_X,
+                               OBSTACLE_MIN_Y, OBSTACLE_MAX_Y,
+                               1.f, 0.0f );
     float dx = .01, dy = .01, dt = .00001;
     float total_time = 4000*dt, print_step = 1000*dt;
     float beta0 = 1.7f;
