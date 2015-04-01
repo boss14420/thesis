@@ -23,11 +23,11 @@ ifneq (,$(CXXFLAGS))
 endif
 
 GENCODE_SM20    := -gencode arch=compute_20,code=sm_20
-GENCODE_SM30    := -gencode arch=compute_30,code=sm_30 -gencode arch=compute_35,code=\"sm_35,compute_35\"
+GENCODE_SM30    := -gencode arch=compute_30,code=sm_30 -gencode arch=compute_35,code=\"sm_35,compute_35\" -dc
 GENCODE_FLAGS   := $(GENCODE_SM20) $(GENCODE_SM30)
 
 #LDFLAGS = -locelot
-LDFLAGS ?=
+LDFLAGS ?= -arch=sm_35 -rdc=true -lcudadevrt
 
 hydrodynamic-flow-cuda: hydrodynamic-flow-cuda.o
 	$(NVCC) $(ALL_CXXFLAGS) $(LDFLAGS) $(LIBS) $(INCLUDES) -o $@ $<

@@ -80,11 +80,11 @@ public:
         : x0(x0), x1(x1), y0(y0), y1(y1), InFlowU(InFlowU), InFlowV(InFlowV)
     {}
 
-    __host__ __device__ SimpleBoundary(SimpleBoundary const &sb)
-        : x0(sb.x0), x1(sb.x1), y0(sb.y0), y1(sb.y1), InFlowU(sb.InFlowU), InFlowV(sb.InFlowV)
-    {}
+//    __host__ __device__ SimpleBoundary(SimpleBoundary const &sb)
+//        : x0(sb.x0), x1(sb.x1), y0(sb.y0), y1(sb.y1), InFlowU(sb.InFlowU), InFlowV(sb.InFlowV)
+//    {}
 
-    __host__ __device__ ~SimpleBoundary() {}
+//    __host__ __device__ ~SimpleBoundary() {}
 
     __device__ bool isInFlowBoundary(int i, int j) const { return i == 0; }
     __device__ bool isOutFlowBoundary(int i, int j) const { return i == WIDTH; }
@@ -281,24 +281,44 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn, T dt, T dx, T dy, 
 }
 
 template <typename T, typename BoundaryCond>
-void time_step(T const *uc, T const *vc, T *P, T *un, T *vn, T dt, T dx, T dy, T beta, BoundaryCond &bound)
+#if __CUDA_ARCH__ >= 350
+    __global__
+#endif
+void time_step(T const *uc, T const *vc, T *P, T *un, T *vn, T dt, T dx, T dy, T beta, BoundaryCond bound)
 {
+    dim3 dimBlock(16, 16);
+    dim3 dimGrid( (((WIDTH + dimBlock.x - 1)/dimBlock.x) + cellPerThreadX - 1)/cellPerThreadX,
+            (((HEIGHT+ dimBlock.y - 1)/dimBlock.y) + cellPerThreadY - 1)/cellPerThreadY
+            );
+
+    dim3 dimGrid2( (((WIDTH + dimBlock.x - 1)/dimBlock.x) + cellPerThreadX - 1)/boundaryCellPerThreadX,
+            (((HEIGHT+ dimBlock.y - 1)/dimBlock.y) + cellPerThreadY - 1)/boundaryCellPerThreadY
+            );
+
     update_uv<<<dimGrid, dimBlock>>>(uc, vc, P, un, vn, dt, dx, dy, bound);
     update_boundary<<<dimGrid2, dimBlock>>>(un, vn, P, bound);
 
     int iteration = 0;
+#if __CUDA_ARCH__ < 350
     int hnodivergence;
+#endif
     do {
+#if __CUDA_ARCH__ < 350
         hnodivergence = true;
         cudaMemcpy(&nodivergence, &hnodivergence, sizeof(int), cudaMemcpyHostToDevice);
-        std::cout << "Iteration " << ++iteration << '\r';
+#endif
+        printf("Iteration %d\r", ++iteration);
 
         adjust_puv<<<dimGrid, dimBlock>>>(uc, vc, P, un, vn, dt, dx, dy, beta, bound, true);
         adjust_puv<<<dimGrid, dimBlock>>>(uc, vc, P, un, vn, dt, dx, dy, beta, bound, false);
+#if __CUDA_ARCH__ < 350
         cudaMemcpy(&hnodivergence, &nodivergence, sizeof(int), cudaMemcpyDeviceToHost);
 
     } while (!hnodivergence);
-    std::cout << '\n';
+#else
+    } while (!nodivergence);
+#endif
+    printf("\n");
     update_boundary<<<dimGrid2, dimBlock>>>(un, vn, P, bound);
 }
 
@@ -345,7 +365,7 @@ template <typename T>
 void print_velocity(T const *uc, T const *vc, int index)
 {
     char name[20];
-    std::cout << "Step " << index << '\n';
+    std::printf("Step %d\n", index);
 
     T const *u = uc, *v = vc;
 //    T *u = new T[STRIDE*STRIDE];
@@ -389,7 +409,11 @@ void flow(T total_time, T print_step, T dt, T dx, T dy, T beta0, BoundaryCond &b
     print_velocity(uc, vc, index++);
     while (accumulate_time < total_time) {
         accumulate_time += dt;
+#if __CUDA_ARCH__ < 350
         time_step(uc, vc, P, un, vn, dt, dx, dy, beta, bound);
+#else
+        time_step<<<1,1>>>(uc, vc, P, un, vn, dt, dx, dy, beta, bound);
+#endif
 
         std::swap(uc, un);
         std::swap(vc, vn);
