@@ -47,7 +47,7 @@
 // int *nodivergence;
 __device__ int nodivergence = 1;
 
-#define cellPerThreadX 16
+#define cellPerThreadX 2
 #define cellPerThreadY 1
 #define boundaryCellPerThreadX 16
 #define boundaryCellPerThreadY 16
@@ -410,18 +410,18 @@ void flow(T total_time, T print_step, T dt, T dx, T dy, T beta0, BoundaryCond &b
     while (accumulate_time < total_time) {
         accumulate_time += print_step;
         time_step<<<1,1>>>(uc, vc, P, un, vn, dt, print_step, dx, dy, beta, bound);
-        //cudaDeviceSynchronize();
+        // cudaDeviceSynchronize();
 
         std::swap(uc, un);
         std::swap(vc, vn);
 
-        if (accumulate_time >= last_printed + print_step) {
+        // if (accumulate_time >= last_printed + print_step) {
             cudaMemcpy(huc, uc, STRIDE*STRIDE*sizeof(T), cudaMemcpyDeviceToHost);
             cudaMemcpy(hvc, vc, STRIDE*STRIDE*sizeof(T), cudaMemcpyDeviceToHost);
             // cudaDeviceSynchronize();
             last_printed += print_step;
             print_velocity(huc, hvc, index++);
-        }
+        // }
     }
 
     freememory(uc, vc, un, vn, P, huc, hvc, nodivergence);
