@@ -45,19 +45,19 @@
 #define Dtolerance 0.01f
 
 // int *nodivergence;
-__device__ int nodivergence;
+__device__ int nodivergence = 1;
 
 #define cellPerThreadX 16
 #define cellPerThreadY 1
 #define boundaryCellPerThreadX 16
 #define boundaryCellPerThreadY 16
 
-dim3 dimBlock(16, 16);
-dim3 dimGrid( (((WIDTH + dimBlock.x - 1)/dimBlock.x) + cellPerThreadX - 1)/cellPerThreadX,
+__const__ dim3 dimBlock(16, 16);
+__const__ dim3 dimGrid( (((WIDTH + dimBlock.x - 1)/dimBlock.x) + cellPerThreadX - 1)/cellPerThreadX,
               (((HEIGHT+ dimBlock.y - 1)/dimBlock.y) + cellPerThreadY - 1)/cellPerThreadY
             );
 
-dim3 dimGrid2( (((WIDTH + dimBlock.x - 1)/dimBlock.x) + boundaryCellPerThreadX - 1)/boundaryCellPerThreadX,
+__const__ dim3 dimGrid2( (((WIDTH + dimBlock.x - 1)/dimBlock.x) + boundaryCellPerThreadX - 1)/boundaryCellPerThreadX,
                (((HEIGHT+ dimBlock.y - 1)/dimBlock.y) + boundaryCellPerThreadY - 1)/boundaryCellPerThreadY
              );
 
@@ -100,31 +100,6 @@ public:
     __device__ T inflowU() const { return InFlowU; }
     __device__ T inflowV() const { return InFlowV; }
 };
-
-
-// finite differencing of u
-template <typename T>
-void DFu(T const *uc, T const *vc, T const *P, T dx, T dy, int i, int j, T &Du)
-{
-    Du = -1/dx*.25f*(SQR(uc[INDEXU(i+1,j)] + uc[INDEXU(i,j)]) - SQR(uc[INDEXU(i-1,j)] + uc[INDEXU(i,j)]));
-    Du += -1/dy*.25f*( (uc[INDEXU(i,j+1)]+uc[INDEXU(i,j)])*(vc[INDEXV(i+1,j)]+vc[INDEXV(i,j)])
-                      -(uc[INDEXU(i,j)]+uc[INDEXU(i,j-1)])*(vc[INDEXV(i+1,j-1)]+vc[INDEXV(i,j-1)]) );
-    Du += -1/dx*(P[INDEXP(i,j)] - P[INDEXP(i-1,j)]);
-    Du += nu*( (uc[INDEXU(i+1,j)] - 2*uc[INDEXU(i,j)] + uc[INDEXU(i-1,j)])/(dx*dx)
-                +(uc[INDEXU(i,j+1)] - 2*uc[INDEXU(i,j)] + uc[INDEXU(i,j-1)])/(dy*dy) );
-}
-
-// finite differencing of v (without dP/dy)
-template <typename T>
-void DFv(T const *uc, T const *vc, T const *P, T dx, T dy, int i, int j, T &Dv)
-{
-    Dv = -1/dy*.25f*(SQR(vc[INDEXV(i,j+1)] + vc[INDEXV(i,j)]) - SQR(vc[INDEXV(i,j-1)] + vc[INDEXV(i,j)]))
-          -1/dy*.25f*( (uc[INDEXU(i,j+1)]+uc[INDEXU(i,j)])*(vc[INDEXV(i+1,j)]+vc[INDEXV(i,j)])
-                      -(uc[INDEXU(i-1,j)]+uc[INDEXU(i-1,j+1)])*(vc[INDEXV(i,j)]+vc[INDEXV(i-1,j)]) )
-          -1/dy*(P[INDEXP(i,j)] - P[INDEXP(i,j-1)])
-          + nu*( (vc[INDEXV(i,j+1)] - 2*vc[INDEXV(i,j)] + vc[INDEXV(i,j-1)])/(dx*dx)
-                +(vc[INDEXV(i+1,j)] - 2*vc[INDEXV(i,j)] + vc[INDEXV(i-1,j)])/(dy*dy) );
-}
 
 template <typename T, typename BoundaryCond>
 __global__
@@ -288,8 +263,8 @@ template <typename T, typename BoundaryCond>
 //#if __CUDA_ARCH__ >= 350
     __global__
 //#endif
-void time_step(T const *uc, T const *vc, T *P, T *un, T *vn, T dt, T dx, T dy, T beta, 
-                BoundaryCond bound)//, int *nodivergence)
+void time_step(T *uc, T *vc, T *P, T *un, T *vn, T dt, T print_step, 
+                T dx, T dy, T beta, BoundaryCond bound)
 {
     dim3 dimBlock(16, 16);
     dim3 dimGrid( (((WIDTH + dimBlock.x - 1)/dimBlock.x) + cellPerThreadX - 1)/cellPerThreadX,
@@ -300,37 +275,34 @@ void time_step(T const *uc, T const *vc, T *P, T *un, T *vn, T dt, T dx, T dy, T
                (((HEIGHT+ dimBlock.y - 1)/dimBlock.y) + boundaryCellPerThreadY - 1)/boundaryCellPerThreadY
              );
 
-    update_uv<<<dimGrid, dimBlock>>>(uc, vc, P, un, vn, dt, dx, dy, bound);
-    // cudaDeviceSynchronize();
-    update_boundary<<<dimGrid2, dimBlock>>>(un, vn, P, bound);
-    // cudaDeviceSynchronize();
-
-    int iteration = 0;
-// #if __CUDA_ARCH__ < 350
-    //int hnodivergence;
-    
-// #endif
-    do {
-        nodivergence = 1;
-        // cudaMemset(nodivergence, 1, sizeof(int));
-// #if __CUDA_ARCH__ < 350
-        //hnodivergence = true;
-        //cudaMemcpy(nodivergence, &hnodivergence, sizeof(int), cudaMemcpyHostToDevice);
-// #endif
-        printf("Iteration %d\r", ++iteration);
-
-        adjust_puv<<<dimGrid, dimBlock>>>(uc, vc, P, un, vn, dt, dx, dy, beta, bound, true);
-        adjust_puv<<<dimGrid, dimBlock>>>(uc, vc, P, un, vn, dt, dx, dy, beta, bound, false);
+    int steps = print_step / dt;
+    while(steps--) {
+        update_uv<<<dimGrid, dimBlock>>>(uc, vc, P, un, vn, dt, dx, dy, bound);
         cudaDeviceSynchronize();
-// #if __CUDA_ARCH__ < 350
-        //cudaMemcpy(&hnodivergence, nodivergence, sizeof(int), cudaMemcpyDeviceToHost);
+        update_boundary<<<dimGrid2, dimBlock>>>(un, vn, P, bound);
+        cudaDeviceSynchronize();
 
-    //} while (!hnodivergence);
-// #else
-    } while (!nodivergence);
-// #endif
-    printf("\n");
-    update_boundary<<<dimGrid2, dimBlock>>>(un, vn, P, bound);
+        // int iteration = 0;
+        nodivergence = 1;
+
+        do {
+            nodivergence = 1;
+            // printf("Iteration %d\r", ++iteration);
+
+            adjust_puv<<<dimGrid, dimBlock>>>(uc, vc, P, un, vn, dt, dx, dy, beta, bound, true);
+            cudaDeviceSynchronize();
+            adjust_puv<<<dimGrid, dimBlock>>>(uc, vc, P, un, vn, dt, dx, dy, beta, bound, false);
+            cudaDeviceSynchronize();
+        } while (!nodivergence);
+
+        // printf("\n");
+        update_boundary<<<dimGrid2, dimBlock>>>(un, vn, P, bound);
+        cudaDeviceSynchronize();
+        
+        // swap (uc, un), (vc, vn)
+        T *tmpc = uc; uc = un; un = tmpc;
+        tmpc = vc; vc = vn; vn = tmpc;
+    }
 }
 
 template <typename T, typename BoundaryCond>
@@ -338,18 +310,18 @@ void initialize(T* &ucurrent, T* &vcurrent, T* &unew, T* &vnew, T* &P, T* &huc, 
                 int* &nodivergence,
                 BoundaryCond bound)
 {
-    cudaMallocManaged(&ucurrent, STRIDE*STRIDE * sizeof(T));
-    cudaMallocManaged(&vcurrent, STRIDE*STRIDE * sizeof(T));
+    cudaMalloc(&ucurrent, STRIDE*STRIDE * sizeof(T));
+    cudaMalloc(&vcurrent, STRIDE*STRIDE * sizeof(T));
     cudaMalloc(&unew, STRIDE*STRIDE * sizeof(T));
     cudaMalloc(&vnew, STRIDE*STRIDE * sizeof(T));
     cudaMalloc(&P, STRIDE*STRIDE * sizeof(T));
-    cudaMemset(ucurrent, 0, STRIDE*STRIDE * sizeof(T));
-    cudaMemset(vcurrent, 0, STRIDE*STRIDE * sizeof(T));
+    // cudaMemset(ucurrent, 0, STRIDE*STRIDE * sizeof(T));
+    // cudaMemset(vcurrent, 0, STRIDE*STRIDE * sizeof(T));
     cudaMemset(unew, 0, STRIDE*STRIDE * sizeof(T));
     cudaMemset(vnew, 0, STRIDE*STRIDE * sizeof(T));
     cudaMemset(P, 0, STRIDE*STRIDE * sizeof(T));
 
-    cudaMalloc(&nodivergence, sizeof(*nodivergence));
+    // cudaMalloc(&nodivergence, sizeof(*nodivergence));
 
     // inflow boundary
 //    for (int j = 0; j <= HEIGHT; ++j) {
@@ -364,14 +336,14 @@ void initialize(T* &ucurrent, T* &vcurrent, T* &unew, T* &vnew, T* &P, T* &huc, 
     std::memset(huc, 0, STRIDE * STRIDE * sizeof(T));
     std::memset(hvc, 0, STRIDE * STRIDE * sizeof(T));
     for (int j = 0; j <= HEIGHT; ++j) {
-        ucurrent[j*STRIDE] = 1;
-        vcurrent[j*STRIDE] = 0;
+        huc[j*STRIDE] = 1;
+        hvc[j*STRIDE] = 0;
     }
 
     // cudaMemcpy(huc, ucurrent, STRIDE*STRIDE*sizeof(T), cudaMemcpyDeviceToHost);
     // cudaMemcpy(hvc, vcurrent, STRIDE*STRIDE*sizeof(T), cudaMemcpyDeviceToHost);
-    // cudaMemcpy(ucurrent, huc, STRIDE*STRIDE*sizeof(T), cudaMemcpyHostToDevice);
-    // cudaMemcpy(vcurrent, hvc, STRIDE*STRIDE*sizeof(T), cudaMemcpyHostToDevice);
+    cudaMemcpy(ucurrent, huc, STRIDE*STRIDE*sizeof(T), cudaMemcpyHostToDevice);
+    cudaMemcpy(vcurrent, hvc, STRIDE*STRIDE*sizeof(T), cudaMemcpyHostToDevice);
     // cudaDeviceSynchronize();
 }
 
@@ -383,7 +355,7 @@ void freememory(T* ucurrent, T* vcurrent, T* unew, T* vnew, T* P, T* huc, T* hvc
     cudaFree(unew);
     cudaFree(vnew);
     cudaFree(P);
-    cudaFree(nodivergence);
+    // cudaFree(nodivergence);
     std::free(huc);
     std::free(hvc);
 }
@@ -434,25 +406,21 @@ void flow(T total_time, T print_step, T dt, T dx, T dy, T beta0, BoundaryCond &b
     T accumulate_time = 0;
     T last_printed = 0;
     int index = 0;
-    print_velocity(uc, vc, index++);
+    print_velocity(huc, hvc, index++);
     while (accumulate_time < total_time) {
-        accumulate_time += dt;
-#if __CUDA_ARCH__ < 350
-        time_step(uc, vc, P, un, vn, dt, dx, dy, beta, bound);
-#else
-        time_step<<<1,1>>>(uc, vc, P, un, vn, dt, dx, dy, beta, bound);
+        accumulate_time += print_step;
+        time_step<<<1,1>>>(uc, vc, P, un, vn, dt, print_step, dx, dy, beta, bound);
         //cudaDeviceSynchronize();
-#endif
 
         std::swap(uc, un);
         std::swap(vc, vn);
 
         if (accumulate_time >= last_printed + print_step) {
-            // cudaMemcpy(huc, uc, STRIDE*STRIDE*sizeof(T), cudaMemcpyDeviceToHost);
-            // cudaMemcpy(hvc, vc, STRIDE*STRIDE*sizeof(T), cudaMemcpyDeviceToHost);
-            cudaDeviceSynchronize();
+            cudaMemcpy(huc, uc, STRIDE*STRIDE*sizeof(T), cudaMemcpyDeviceToHost);
+            cudaMemcpy(hvc, vc, STRIDE*STRIDE*sizeof(T), cudaMemcpyDeviceToHost);
+            // cudaDeviceSynchronize();
             last_printed += print_step;
-            print_velocity(uc, vc, index++);
+            print_velocity(huc, hvc, index++);
         }
     }
 
