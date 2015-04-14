@@ -189,13 +189,13 @@ void update_uv(T const *uc, T const *vc, T const *P, T *un, T *vn, T dt, T dx, T
 }
 
 template <typename T, typename BoundaryCond>
-void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn, 
-				T dt, T dx, T dy, T beta, 
+void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn,
+		T dt, T dx, T dy, T beta,
                 BoundaryCond bound, bool cellType)
 {
     T D, delta_P;
     int shift = (1 % 2) ^ cellType;
-	int i;
+    int i;
 
     for (int j = 1; j < HEIGHT; ++j, shift = 1-shift) {
 #pragma omp parallel for private(i) reduction(and:nodivergence)
@@ -221,12 +221,10 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn,
 }
 
 template <typename T, typename BoundaryCond>
-void time_step(T *uc, T *vc, T *P, T *un, T *vn, 
-				int *blk_nodivergence,
+void time_step(T *uc, T *vc, T *P, T *un, T *vn,
 				T dt, T print_step, T dx, T dy, T beta, BoundaryCond bound)
 {
     int steps = print_step / dt;
-	int startX, startY;
     while(steps--) {
         update_uv(uc, vc, P, un, vn, dt, dx, dy, bound);
         update_boundary(un, vn, P, bound);
@@ -255,7 +253,7 @@ void time_step(T *uc, T *vc, T *P, T *un, T *vn,
 
         //printf("\n");
         update_boundary(un, vn, P, bound);
-        
+
         // swap (uc, un), (vc, vn)
         T *tmpc = uc; uc = un; un = tmpc;
         tmpc = vc; vc = vn; vn = tmpc;
@@ -263,8 +261,7 @@ void time_step(T *uc, T *vc, T *P, T *un, T *vn,
 }
 
 template <typename T, typename BoundaryCond>
-void initialize(T* &ucurrent, T* &vcurrent, T* &unew, T* &vnew, T* &P, T* &huc, T* &hvc, 
-                int* &nodivergence,
+void initialize(T* &ucurrent, T* &vcurrent, T* &unew, T* &vnew, T* &P, T* &huc, T* &hvc,
                 BoundaryCond bound)
 {
     ucurrent = (T*) malloc(STRIDE*STRIDE * sizeof(T));
@@ -305,7 +302,7 @@ void initialize(T* &ucurrent, T* &vcurrent, T* &unew, T* &vnew, T* &P, T* &huc, 
 }
 
 template <typename T>
-void freememory(T* ucurrent, T* vcurrent, T* unew, T* vnew, T* P, T* huc, T* hvc, int *nodivergence)
+void freememory(T* ucurrent, T* vcurrent, T* unew, T* vnew, T* P, T* huc, T* hvc)
 {
     free(ucurrent);
     free(vcurrent);
@@ -355,9 +352,8 @@ template <typename T, typename BoundaryCond>
 void flow(T total_time, T print_step, T dt, T dx, T dy, T beta0, BoundaryCond &bound)
 {
     T *uc, *vc, *un, *vn, *P;
-    int *blk_nodivergence;
     T *huc, *hvc;
-    initialize(uc, vc, un, vn, P, huc, hvc, blk_nodivergence, bound);
+    initialize(uc, vc, un, vn, P, huc, hvc, bound);
     T beta = beta0 / (2*dt*(1/(dx*dx) + 1/(dy*dy)));
 
     T accumulate_time = 0;
@@ -366,7 +362,7 @@ void flow(T total_time, T print_step, T dt, T dx, T dy, T beta0, BoundaryCond &b
     print_velocity(uc, vc, index++);
     while (accumulate_time < total_time) {
         accumulate_time += print_step;
-        time_step(uc, vc, P, un, vn, blk_nodivergence, dt, print_step, dx, dy, beta, bound);
+        time_step(uc, vc, P, un, vn, dt, print_step, dx, dy, beta, bound);
         // cudaDeviceSynchronize();
 
         std::swap(uc, un);
@@ -381,7 +377,7 @@ void flow(T total_time, T print_step, T dt, T dx, T dy, T beta0, BoundaryCond &b
         // }
     }
 
-    freememory(uc, vc, un, vn, P, huc, hvc, blk_nodivergence);
+    freememory(uc, vc, un, vn, P, huc, hvc);
 }
 
 int main()
@@ -390,7 +386,7 @@ int main()
                                OBSTACLE_MIN_Y, OBSTACLE_MAX_Y,
                                1.f, 0.0f );
     float dx = .01, dy = .01, dt = .00001;
-    float total_time = 9000*dt, print_step = 1000*dt;
+    float total_time = 900*dt, print_step = 100*dt;
     float beta0 = 1.7f;
 
     flow<float, SimpleBoundary<float> >(total_time, print_step, dt, dx, dy, beta0, sb);
