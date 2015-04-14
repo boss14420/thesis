@@ -3,7 +3,7 @@ all: hydrodynamic-flow hydrodynamic-flow2
 CXX = g++
 CXXFLAGS_BASIC = -std=c++11 -pipe
 CXXFLAGS_DEBUG = $(CXXFLAGS_BASIC) -g
-CXXFLAGS_RELEASE = $(CXXFLAGS_BASIC) -O3 -march=native #-fopenmp
+CXXFLAGS_RELEASE = $(CXXFLAGS_BASIC) -O3 -march=native -fopenmp
 CXXFLAGS = $(CXXFLAGS_RELEASE)
 LIBS =
 LDFLAGS =

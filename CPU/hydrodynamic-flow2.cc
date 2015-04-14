@@ -198,7 +198,7 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn,
     int i;
 
     for (int j = 1; j < HEIGHT; ++j, shift = 1-shift) {
-#pragma omp parallel for private(i) reduction(and:nodivergence)
+#pragma omp parallel for private(i, D, delta_P) // reduction(and:nodivergence)
         for (i = shift + 1; i < WIDTH; i += 2) {
             if (bound.isObstacle(i, j)) {
                 //P[INDEXP(i, j)] = 0;
@@ -212,6 +212,7 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn,
                     un[INDEXU(i+1,j)] += (dt/dx)*delta_P;
                     vn[INDEXV(i,j)] -= (dt/dy)*delta_P;
                     vn[INDEXV(i,j+1)] += (dt/dy)*delta_P;
+#pragma omp atomic write
                     nodivergence = 0;
                 }
             }
