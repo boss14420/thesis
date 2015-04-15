@@ -123,8 +123,8 @@ template <typename T, typename BoundaryCond>
 void update_uv(T const *uc, T const *vc, T const *P, T *un, T *vn, T dt, T dx, T dy, BoundaryCond bound)
 {
     int i, j;
+    #pragma omp parallel for private(j)
     for (j = 1; j < HEIGHT; ++j) {
-	#pragma omp parallel for private(i)
         for (i = 1; i < WIDTH; ++i) {
             if (bound.isObstacle(i, j)) {
                 // zero velocity
@@ -194,11 +194,12 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn,
                 BoundaryCond bound, bool cellType)
 {
     T D, delta_P;
-    int shift = (1 % 2) ^ cellType;
-    int i;
+//    int shift = (1 % 2) ^ cellType;
+    int i, j;
 
-    for (int j = 1; j < HEIGHT; ++j, shift = 1-shift) {
-#pragma omp parallel for private(i, D, delta_P) // reduction(and:nodivergence)
+#pragma omp parallel for private(j, D, delta_P) reduction(and:nodivergence)
+    for (j = 1; j < HEIGHT; ++j) {
+        int shift = (j % 2) ^ cellType;
         for (i = shift + 1; i < WIDTH; i += 2) {
             if (bound.isObstacle(i, j)) {
                 //P[INDEXP(i, j)] = 0;
@@ -212,7 +213,6 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn,
                     un[INDEXU(i+1,j)] += (dt/dx)*delta_P;
                     vn[INDEXV(i,j)] -= (dt/dy)*delta_P;
                     vn[INDEXV(i,j+1)] += (dt/dy)*delta_P;
-#pragma omp atomic write
                     nodivergence = 0;
                 }
             }
@@ -230,29 +230,20 @@ void time_step(T *uc, T *vc, T *P, T *un, T *vn,
         update_uv(uc, vc, P, un, vn, dt, dx, dy, bound);
         update_boundary(un, vn, P, bound);
 
-        //int iteration = 0;
-        //int nodivergence = 1;
+//        int iteration = 0;
+            //int nodivergence = 1;
 
         do {
-            //printf("Iteration %d\r", ++iteration);
+//            printf("Iteration %d\r", ++iteration);
 
             nodivergence = 1;
-			//for (int i = 0; i < dimGrid.x * dimGrid.y; ++i) blk_nodivergence[i] = 1;
+                            //for (int i = 0; i < dimGrid.x * dimGrid.y; ++i) blk_nodivergence[i] = 1;
 
             adjust_puv(uc, vc, P, un, vn, dt, dx, dy, beta, bound, true);
             adjust_puv(uc, vc, P, un, vn, dt, dx, dy, beta, bound, false);
-
-			/*
-			for (int i = 0; i < dimGrid.x * dimGrid.y; ++i)
-				if (blk_nodivergence[i] == 0) {
-					nodivergence = 0;
-					break;
-				}
-			*/
-
         } while (!nodivergence);
 
-        //printf("\n");
+//        printf("\n");
         update_boundary(un, vn, P, bound);
 
         // swap (uc, un), (vc, vn)
