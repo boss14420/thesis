@@ -364,7 +364,7 @@ int main()
     SimpleBoundary<float> sb ( OBSTACLE_MIN_X, OBSTACLE_MAX_X,
                                OBSTACLE_MIN_Y, OBSTACLE_MAX_Y,
                                1.f, 0.0f );
-    float dx = .01, dy = .01, dt = .00001;
+    float dx = .01, dy = .01, dt = .0001;
     float total_time = 900*dt, print_step = 100*dt;
     float beta0 = 1.7f;
 

@@ -433,12 +433,46 @@ void flow(T total_time, T print_step, T dt, T dx, T dy, T beta0, BoundaryCond &b
 
 int main()
 {
-    SimpleBoundary<float> sb ( OBSTACLE_MIN_X, OBSTACLE_MAX_X,
+    typedef float T;
+
+/////// calculate occupancy
+    int numBlocks;
+    int potentialBlockSize;
+    int minGridSize;//, gridSize;
+
+    cudaOccupancyMaxPotentialBlockSize(&minGridSize, &potentialBlockSize, adjust_puv<T, SimpleBoundary<T> >, 0, WIDTH*HEIGHT);
+    std::cout << "minGridSize: " << minGridSize
+                << ", potentialblockSize: " << potentialBlockSize << '\n';
+
+    int device;
+    cudaDeviceProp prop;
+    int activeWarps;
+    int maxWarps;
+
+    cudaGetDevice(&device);
+    cudaGetDeviceProperties(&prop, device);
+
+    int blockSize = dimBlock.x * dimBlock.y;
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+            &numBlocks,
+            adjust_puv<T, SimpleBoundary<T> >,
+            blockSize,
+            0);
+
+    activeWarps = numBlocks * blockSize/ prop.warpSize;
+    maxWarps = prop.maxThreadsPerMultiProcessor / prop.warpSize;
+
+    std::cout << "activeWarps: " << activeWarps
+                << ", maxWarps: " << maxWarps << '\n';
+    std::cout << "Occupancy: " << (double)activeWarps/maxWarps<< '\n';
+
+/////////////////////////////////////////////////////////////////////////////////////
+    SimpleBoundary<T> sb ( OBSTACLE_MIN_X, OBSTACLE_MAX_X,
                                OBSTACLE_MIN_Y, OBSTACLE_MAX_Y,
                                1.f, 0.0f );
-    float dx = .01, dy = .01, dt = .00001;
-    float total_time = 9000*dt, print_step = 1000*dt;
-    float beta0 = 1.7f;
+    T dx = .01, dy = .01, dt = .0001;
+    T total_time = 900*dt, print_step = 100*dt;
+    T beta0 = 1.7f;
 
-    flow<float, SimpleBoundary<float> >(total_time, print_step, dt, dx, dy, beta0, sb);
+    flow<T, SimpleBoundary<T> >(total_time, print_step, dt, dx, dy, beta0, sb);
 }
