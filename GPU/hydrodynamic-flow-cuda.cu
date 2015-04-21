@@ -253,13 +253,14 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn,
         }
     }
 
-    int warp_nodivergence = __all(thread_nodivergence);
-    //int bn = __syncthreads_and(thread_nodivergence);
+    //int warp_nodivergence = __all(thread_nodivergence);
     // first thread in a warp
-    if ( (threadIdx.y * blockDim.x + threadIdx.x) % warpSize == 0) {
-    //if ( (threadIdx.y == 0) && (threadIdx.x == 0) ) {
-        atomicAnd(&nodivergence, thread_nodivergence);
-		//blk_nodivergence[blockIdx.y * gridDim.x + blockIdx.x] = bn;
+    //if ( (threadIdx.y * blockDim.x + threadIdx.x) % warpSize == 0) {
+
+    int bn = __syncthreads_and(thread_nodivergence);
+    // first thread in a block
+    if ( (threadIdx.y == 0) && (threadIdx.x == 0) ) {
+        atomicAnd(&nodivergence, bn);
     }
 }
 
