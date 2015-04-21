@@ -261,8 +261,6 @@ void initialize(T* &ucurrent, T* &vcurrent, T* &unew, T* &vnew, T* &P, T* &huc, 
     unew = (T*) malloc(STRIDE*STRIDE * sizeof(T));
     vnew = (T*) malloc(STRIDE*STRIDE * sizeof(T));
     P = (T*) malloc(STRIDE*STRIDE * sizeof(T));
-    // cudaMemset(ucurrent, 0, STRIDE*STRIDE * sizeof(T));
-    // cudaMemset(vcurrent, 0, STRIDE*STRIDE * sizeof(T));
     memset(unew, 0, STRIDE*STRIDE * sizeof(T));
     memset(vnew, 0, STRIDE*STRIDE * sizeof(T));
     memset(P, 0, STRIDE*STRIDE * sizeof(T));
@@ -275,7 +273,6 @@ void initialize(T* &ucurrent, T* &vcurrent, T* &unew, T* &vnew, T* &P, T* &huc, 
 //        vcurrent[INDEXU(0, j)] = bound.inflowV();
 //    }
     // update_boundary<<<dimGrid2, dimBlock>>>(ucurrent, vcurrent, P, bound);
-    // cudaDeviceSynchronize();
 
     //huc = (T*) std::malloc(STRIDE * STRIDE * sizeof(T));
     //hvc = (T*) std::malloc(STRIDE * STRIDE * sizeof(T));
@@ -285,12 +282,6 @@ void initialize(T* &ucurrent, T* &vcurrent, T* &unew, T* &vnew, T* &P, T* &huc, 
         ucurrent[j*STRIDE] = bound.inflowU();
         vcurrent[j*STRIDE] = bound.inflowV();
     }
-
-    // cudaMemcpy(huc, ucurrent, STRIDE*STRIDE*sizeof(T), cudaMemcpyDeviceToHost);
-    // cudaMemcpy(hvc, vcurrent, STRIDE*STRIDE*sizeof(T), cudaMemcpyDeviceToHost);
-    //cudaMemcpy(ucurrent, huc, STRIDE*STRIDE*sizeof(T), cudaMemcpyHostToDevice);
-    //cudaMemcpy(vcurrent, hvc, STRIDE*STRIDE*sizeof(T), cudaMemcpyHostToDevice);
-    // cudaDeviceSynchronize();
 }
 
 template <typename T>
@@ -355,15 +346,11 @@ void flow(T total_time, T print_step, T dt, T dx, T dy, T beta0, BoundaryCond &b
     while (accumulate_time < total_time) {
         accumulate_time += print_step;
         time_step(uc, vc, P, un, vn, dt, print_step, dx, dy, beta, bound);
-        // cudaDeviceSynchronize();
 
         std::swap(uc, un);
         std::swap(vc, vn);
 
         // if (accumulate_time >= last_printed + print_step) {
-            //cudaMemcpy(huc, uc, STRIDE*STRIDE*sizeof(T), cudaMemcpyDeviceToHost);
-            //cudaMemcpy(hvc, vc, STRIDE*STRIDE*sizeof(T), cudaMemcpyDeviceToHost);
-            // cudaDeviceSynchronize();
             last_printed += print_step;
             print_velocity(uc, vc, index++);
         // }

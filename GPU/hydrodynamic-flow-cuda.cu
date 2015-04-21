@@ -217,7 +217,6 @@ void update_uv(T const *uc, T const *vc, T const *P, T *un, T *vn, T dt, T dx, T
 template <typename T, typename BoundaryCond>
 __global__
 void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn, 
-				int *blk_nodivergence,
 				T dt, T dx, T dy, T beta, 
                 BoundaryCond bound, bool cellType)
 {
@@ -265,11 +264,8 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn,
 }
 
 template <typename T, typename BoundaryCond>
-//#if __CUDA_ARCH__ >= 350
-    __global__
-//#endif
+__global__
 void time_step(T *uc, T *vc, T *P, T *un, T *vn, 
-				int *blk_nodivergence,
 				T dt, T print_step, T dx, T dy, T beta, BoundaryCond bound)
 {
     dim3 dimBlock(16, 16);
@@ -288,27 +284,17 @@ void time_step(T *uc, T *vc, T *P, T *un, T *vn,
         update_boundary<<<dimGrid2, dimBlock>>>(un, vn, P, bound);
         cudaDeviceSynchronize();
 
-        // int iteration = 0;
-        //int nodivergence = 1;
+        //int iteration = 0;
 
         do {
             // printf("Iteration %d\r", ++iteration);
 
             nodivergence = 1;
-			//for (int i = 0; i < dimGrid.x * dimGrid.y; ++i) blk_nodivergence[i] = 1;
 
-            adjust_puv<<<dimGrid, dimBlock>>>(uc, vc, P, un, vn, blk_nodivergence, dt, dx, dy, beta, bound, true);
+            adjust_puv<<<dimGrid, dimBlock>>>(uc, vc, P, un, vn, dt, dx, dy, beta, bound, true);
             cudaDeviceSynchronize();
-            adjust_puv<<<dimGrid, dimBlock>>>(uc, vc, P, un, vn, blk_nodivergence, dt, dx, dy, beta, bound, false);
+            adjust_puv<<<dimGrid, dimBlock>>>(uc, vc, P, un, vn, dt, dx, dy, beta, bound, false);
             cudaDeviceSynchronize();
-
-			/*
-			for (int i = 0; i < dimGrid.x * dimGrid.y; ++i)
-				if (blk_nodivergence[i] == 0) {
-					nodivergence = 0;
-					break;
-				}
-			*/
 
         } while (!nodivergence);
 
@@ -426,7 +412,7 @@ void flow(T total_time, T print_step, T dt, T dx, T dy, T beta0, BoundaryCond &b
     print_velocity(huc, hvc, index++);
     while (accumulate_time < total_time) {
         accumulate_time += print_step;
-        time_step<<<1,1>>>(uc, vc, P, un, vn, blk_nodivergence, dt, print_step, dx, dy, beta, bound);
+        time_step<<<1,1>>>(uc, vc, P, un, vn, dt, print_step, dx, dy, beta, bound);
         // cudaDeviceSynchronize();
 
         std::swap(uc, un);
