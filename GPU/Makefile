@@ -16,8 +16,9 @@ INCLUDES ?=
 
 ALL_CXXFLAGS =
 #CCFLAGS = -ccbin $(GCC) -m64
-CCFLAGS = -ccbin $(CXX) -m64 --device-debug -g
-ALL_CXXFLAGS += $(CCFLAGS)
+CCFLAGS_DEBUG = -ccbin $(CXX) -m64 --device-debug -g
+CCFLAGS_RELEASE = -ccbin $(CXX) -m64 -O3 --use_fast_math
+ALL_CXXFLAGS += $(CCFLAGS_RELEASE)
 ifneq (,$(CXXFLAGS))
     ALL_CXXFLAGS += -Xcompiler $(CXXFLAGS)
 endif
