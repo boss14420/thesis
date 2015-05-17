@@ -24,7 +24,7 @@ void exportPixmap(T const *c, std::size_t width, std::size_t height, std::size_t
 
     for (int j = height; j >= 0; --j) {
         for (std::size_t i = 0; i <= width; ++i) {
-            printColor(ofs, std::fabs(c[j*stride + i]));
+            printColor(ofs, std::fabs(c[i*stride + j]));
         }
     }
 
@@ -46,7 +46,7 @@ void exportMatlab(T const *c, std::size_t width, std::size_t height, std::size_t
 //        << "# columns: " << WIDTH+1 << '\n';
     for (std::size_t j = 0; j <= height; ++j) {
         for (std::size_t i = 0; i <= width; ++i) {
-            ofs << c[j*stride+i] << " ";
+            ofs << c[i*stride+j] << " ";
         }
         ofs << '\n';
     }

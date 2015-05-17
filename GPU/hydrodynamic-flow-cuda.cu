@@ -37,9 +37,9 @@
 //#define dx .01f
 //#define dy .01f
 //#define dt .01f
-#define INDEXU(x, y) ((y) * (STRIDE) + (x))
-#define INDEXV(x, y) ((y) * (STRIDE) + (x))
-#define INDEXP(x, y) ((y)*STRIDE+ (x))
+#define INDEXU(x, y) ((x) * (STRIDE) + (y))
+#define INDEXV(x, y) ((x) * (STRIDE) + (y))
+#define INDEXP(x, y) ((x)*STRIDE+ (y))
 #define SQR(x) ((x) * (x))
 #define nu 0.1f
 #define Dtolerance 0.01f
@@ -47,8 +47,8 @@
 int *nodivergence;
 //__device__ int nodivergence = 1;
 
-#define cellPerThreadX 2
-#define cellPerThreadY 1
+#define cellPerThreadX 1
+#define cellPerThreadY 2
 #define boundaryCellPerThreadX 16
 #define boundaryCellPerThreadY 16
 
@@ -105,8 +105,10 @@ template <typename T, typename BoundaryCond>
 __global__
 void update_boundary(T *uc, T *vc, T *P, BoundaryCond bound)
 {
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    //int y = blockIdx.y * blockDim.y + threadIdx.y;
+    //int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
 
     int startX = x*boundaryCellPerThreadX + 1;
     int endX = min(startX + boundaryCellPerThreadX, WIDTH);
@@ -141,8 +143,10 @@ template <typename T, typename BoundaryCond>
 __global__
 void update_uv(T const *uc, T const *vc, T const *P, T *un, T *vn, T dt, T dx, T dy, BoundaryCond bound)
 {
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    //int y = blockIdx.y * blockDim.y + threadIdx.y;
+    //int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
 
     int startX = x*cellPerThreadX + 1;
     int endX = min(startX + cellPerThreadX, WIDTH);
@@ -150,8 +154,8 @@ void update_uv(T const *uc, T const *vc, T const *P, T *un, T *vn, T dt, T dx, T
     int endY = min(startY + cellPerThreadY, HEIGHT);
 
     int i, j;
-    for (j = startY; j < endY; ++j) {
-        for (i = startX; i < endX; ++i) {
+    for (i = startX; i < endX; ++i) {
+        for (j = startY; j < endY; ++j) {
             if (bound.isObstacle(i, j)) {
                 // zero velocity
                 un[INDEXU(i, j)] = 0;
@@ -226,10 +230,12 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn,
                 int *nodivergence,
                 BoundaryCond bound, bool cellType)
 {
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    //int y = blockIdx.y * blockDim.y + threadIdx.y;
+    //int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
 
-    int shift = (y % 2) ^ cellType;
+    int shift = (x % 2) ^ cellType;
 
     int startX = x*cellPerThreadX + 1;
     int endX = min(startX + cellPerThreadX, WIDTH);
@@ -238,12 +244,12 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn,
 
     T D, delta_P;
     int thread_nodivergence = 1;
-    typename double_vec<T>::type u12; // coalesced access u
-    T *vij, *vijp1;
-    T *uij, *uip1j;
+    //typename double_vec<T>::type u12; // coalesced access u
+    //T *vij, *vijp1;
+    //T *uij, *uip1j;
 
-    for (int j = startY; j < endY; ++j, shift = 1-shift) {
-        for (int i = startX + shift; i < endX; i += 2) {
+    for (int i = startX; i < endX; ++i, shift = 1-shift) {
+        for (int j = startY+shift; j < endY; j+=2) {
             if (bound.isObstacle(i, j)) {
                 //P[INDEXP(i, j)] = 0;
             } else {
@@ -367,8 +373,8 @@ void initialize(T* &ucurrent, T* &vcurrent, T* &unew, T* &vnew, T* &P, T* &huc, 
     std::memset(huc, 0, STRIDE * STRIDE * sizeof(T));
     std::memset(hvc, 0, STRIDE * STRIDE * sizeof(T));
     for (int j = 0; j <= HEIGHT; ++j) {
-        huc[j*STRIDE] = 1;
-        hvc[j*STRIDE] = 0;
+        huc[j] = 1;
+        hvc[j] = 0;
     }
 
     // cudaMemcpy(huc, ucurrent, STRIDE*STRIDE*sizeof(T), cudaMemcpyDeviceToHost);
