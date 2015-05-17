@@ -484,6 +484,7 @@ int main()
     std::cout << "activeWarps: " << activeWarps
                 << ", maxWarps: " << maxWarps << '\n';
     std::cout << "Occupancy: " << (double)activeWarps/maxWarps<< '\n';
+    std::cout << "No of blocks: " << dimGrid.x * dimGrid.y << '\n';
 
 /////////////////////////////////////////////////////////////////////////////////////
     SimpleBoundary<T> sb ( OBSTACLE_MIN_X, OBSTACLE_MAX_X,
