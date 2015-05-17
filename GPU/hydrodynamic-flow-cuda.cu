@@ -256,7 +256,7 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn,
                     +1/dy * (vn[INDEXV(i,j+1)] - vn[INDEXV(i,j)]);
                 //D = 1/dx * (u12.y - u12.x) + 1/dy * (*vijp1 - *vij);
                 //D = 1/dx * (*uip1j - *uij) + 1/dy * (*vijp1 - *vij);
-                if (fabs(D) > Dtolerance) {
+                //if (fabs(D) > Dtolerance) {
                     delta_P = -beta * D;
                     P[INDEXP(i,j)] += delta_P;
                     un[INDEXU(i,j)] -= (dt/dx)*delta_P;
@@ -267,8 +267,9 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn,
                     //*vijp1          += (dt/dy)*delta_P;
                     vn[INDEXV(i,j)] -= (dt/dy)*delta_P;
                     vn[INDEXV(i,j+1)] += (dt/dy)*delta_P;
-                    thread_nodivergence = 0;
-                }
+                //    thread_nodivergence = 0;
+                //}
+                thread_nodivergence &= (fabs(D) <= Dtolerance);
             }
         }
     }
