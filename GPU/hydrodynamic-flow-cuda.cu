@@ -44,8 +44,8 @@
 #define nu 0.1f
 #define Dtolerance 0.01f
 
-// int *nodivergence;
-__device__ int nodivergence = 1;
+int *nodivergence;
+//__device__ int nodivergence = 1;
 
 #define cellPerThreadX 2
 #define cellPerThreadY 1
@@ -223,6 +223,7 @@ template <typename T, typename BoundaryCond>
 __global__
 void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn, 
 				T dt, T dx, T dy, T beta, 
+                int *nodivergence,
                 BoundaryCond bound, bool cellType)
 {
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -279,15 +280,17 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn,
     int bn = __syncthreads_and(thread_nodivergence);
     // first thread in a block
     if ( (threadIdx.y == 0) && (threadIdx.x == 0) ) {
-        atomicAnd(&nodivergence, bn);
+        //atomicAnd(&nodivergence, bn);
+        atomicAnd(nodivergence, bn);
     }
 }
 
 template <typename T, typename BoundaryCond>
-__global__
+//__global__
 void time_step(T *uc, T *vc, T *P, T *un, T *vn, 
 				T dt, T print_step, T dx, T dy, T beta, BoundaryCond bound)
 {
+    /*
     dim3 dimBlock(16, 16);
     dim3 dimGrid( (((WIDTH + dimBlock.x - 1)/dimBlock.x) + cellPerThreadX - 1)/cellPerThreadX,
             (((HEIGHT+ dimBlock.y - 1)/dimBlock.y) + cellPerThreadY - 1)/cellPerThreadY
@@ -296,6 +299,7 @@ void time_step(T *uc, T *vc, T *P, T *un, T *vn,
     dim3 dimGrid2( (((WIDTH + dimBlock.x - 1)/dimBlock.x) + boundaryCellPerThreadX - 1)/boundaryCellPerThreadX,
                (((HEIGHT+ dimBlock.y - 1)/dimBlock.y) + boundaryCellPerThreadY - 1)/boundaryCellPerThreadY
              );
+    */
 
     int steps = print_step / dt;
     while(steps--) {
@@ -305,23 +309,27 @@ void time_step(T *uc, T *vc, T *P, T *un, T *vn,
         cudaDeviceSynchronize();
 
         //int iteration = 0;
+        int hnodivergence = 1;
 
         do {
             // printf("Iteration %d\r", ++iteration);
 
-            nodivergence = 1;
+            hnodivergence = 1;
+            //nodivergence = 1;
+            cudaMemcpy(nodivergence, &hnodivergence, sizeof(int), cudaMemcpyHostToDevice);
 
-            adjust_puv<<<dimGrid, dimBlock>>>(uc, vc, P, un, vn, dt, dx, dy, beta, bound, true);
+            adjust_puv<<<dimGrid, dimBlock>>>(uc, vc, P, un, vn, dt, dx, dy, beta, nodivergence, bound, true);
             cudaDeviceSynchronize();
-            adjust_puv<<<dimGrid, dimBlock>>>(uc, vc, P, un, vn, dt, dx, dy, beta, bound, false);
+            adjust_puv<<<dimGrid, dimBlock>>>(uc, vc, P, un, vn, dt, dx, dy, beta, nodivergence, bound, false);
             cudaDeviceSynchronize();
 
-        } while (!nodivergence);
+            cudaMemcpy(&hnodivergence, nodivergence, sizeof(int), cudaMemcpyDeviceToHost);
+        } while (!hnodivergence);
 
         // printf("\n");
         update_boundary<<<dimGrid2, dimBlock>>>(un, vn, P, bound);
         cudaDeviceSynchronize();
-        
+
         // swap (uc, un), (vc, vn)
         T *tmpc = uc; uc = un; un = tmpc;
         tmpc = vc; vc = vn; vn = tmpc;
@@ -329,7 +337,7 @@ void time_step(T *uc, T *vc, T *P, T *un, T *vn,
 }
 
 template <typename T, typename BoundaryCond>
-void initialize(T* &ucurrent, T* &vcurrent, T* &unew, T* &vnew, T* &P, T* &huc, T* &hvc, 
+void initialize(T* &ucurrent, T* &vcurrent, T* &unew, T* &vnew, T* &P, T* &huc, T* &hvc,
                 int* &nodivergence,
                 BoundaryCond bound)
 {
@@ -344,7 +352,7 @@ void initialize(T* &ucurrent, T* &vcurrent, T* &unew, T* &vnew, T* &P, T* &huc, 
     cudaMemset(vnew, 0, STRIDE*STRIDE * sizeof(T));
     cudaMemset(P, 0, STRIDE*STRIDE * sizeof(T));
 
-    cudaMalloc(&nodivergence, dimGrid.x * dimGrid.y * sizeof(*nodivergence));
+    cudaMalloc(&nodivergence, sizeof(*nodivergence));
 
     // inflow boundary
 //    for (int j = 0; j <= HEIGHT; ++j) {
@@ -421,9 +429,9 @@ template <typename T, typename BoundaryCond>
 void flow(T total_time, T print_step, T dt, T dx, T dy, T beta0, BoundaryCond &bound)
 {
     T *uc, *vc, *un, *vn, *P;
-    int *blk_nodivergence;
+    //int *blk_nodivergence;
     T *huc, *hvc;
-    initialize(uc, vc, un, vn, P, huc, hvc, blk_nodivergence, bound);
+    initialize(uc, vc, un, vn, P, huc, hvc, nodivergence, bound);
     T beta = beta0 / (2*dt*(1/(dx*dx) + 1/(dy*dy)));
 
     T accumulate_time = 0;
@@ -432,8 +440,9 @@ void flow(T total_time, T print_step, T dt, T dx, T dy, T beta0, BoundaryCond &b
     print_velocity(huc, hvc, index++);
     while (accumulate_time < total_time) {
         accumulate_time += print_step;
-        time_step<<<1,1>>>(uc, vc, P, un, vn, dt, print_step, dx, dy, beta, bound);
-        // cudaDeviceSynchronize();
+        //time_step<<<1,1>>>(uc, vc, P, un, vn, dt, print_step, dx, dy, beta, bound);
+        time_step(uc, vc, P, un, vn, dt, print_step, dx, dy, beta, bound);
+        cudaDeviceSynchronize();
 
         std::swap(uc, un);
         std::swap(vc, vn);
@@ -447,7 +456,7 @@ void flow(T total_time, T print_step, T dt, T dx, T dy, T beta0, BoundaryCond &b
         // }
     }
 
-    freememory(uc, vc, un, vn, P, huc, hvc, blk_nodivergence);
+    freememory(uc, vc, un, vn, P, huc, hvc, nodivergence);
 }
 
 int main()
