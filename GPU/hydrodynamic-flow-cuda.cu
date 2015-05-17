@@ -47,8 +47,8 @@
 int *nodivergence;
 //__device__ int nodivergence = 1;
 
-#define cellPerThreadX 1
-#define cellPerThreadY 2
+#define cellPerThreadX 2
+#define cellPerThreadY 1
 #define boundaryCellPerThreadX 16
 #define boundaryCellPerThreadY 16
 
@@ -105,15 +105,13 @@ template <typename T, typename BoundaryCond>
 __global__
 void update_boundary(T *uc, T *vc, T *P, BoundaryCond bound)
 {
-    //int y = blockIdx.y * blockDim.y + threadIdx.y;
-    //int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int x = blockIdx.y * blockDim.y + threadIdx.y;
-    int y = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
 
-    int startX = x*boundaryCellPerThreadX + 1;
-    int endX = min(startX + boundaryCellPerThreadX, WIDTH);
-    int startY = y*boundaryCellPerThreadY + 1;
-    int endY = min(startY + boundaryCellPerThreadY, HEIGHT);
+    int startY = x*boundaryCellPerThreadX + 1;
+    int endY = min(startY + boundaryCellPerThreadX, WIDTH);
+    int startX = y*boundaryCellPerThreadY + 1;
+    int endX = min(startX + boundaryCellPerThreadY, HEIGHT);
     // printf("Thread (%d, %d), startX = %d, startY = %d\n", x, y, startX, startY);
 
     int i, j;
@@ -143,15 +141,13 @@ template <typename T, typename BoundaryCond>
 __global__
 void update_uv(T const *uc, T const *vc, T const *P, T *un, T *vn, T dt, T dx, T dy, BoundaryCond bound)
 {
-    //int y = blockIdx.y * blockDim.y + threadIdx.y;
-    //int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int x = blockIdx.y * blockDim.y + threadIdx.y;
-    int y = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
 
-    int startX = x*cellPerThreadX + 1;
-    int endX = min(startX + cellPerThreadX, WIDTH);
-    int startY = y*cellPerThreadY + 1;
-    int endY = min(startY + cellPerThreadY, HEIGHT);
+    int startY = x*cellPerThreadX + 1;
+    int endY = min(startY + cellPerThreadX, WIDTH);
+    int startX = y*cellPerThreadY + 1;
+    int endX = min(startX + cellPerThreadY, HEIGHT);
 
     int i, j;
     for (i = startX; i < endX; ++i) {
@@ -230,17 +226,15 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn,
                 int *nodivergence,
                 BoundaryCond bound, bool cellType)
 {
-    //int y = blockIdx.y * blockDim.y + threadIdx.y;
-    //int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int x = blockIdx.y * blockDim.y + threadIdx.y;
-    int y = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
 
-    int shift = (x % 2) ^ cellType;
+    int shift = (y % 2) ^ cellType;
 
-    int startX = x*cellPerThreadX + 1;
-    int endX = min(startX + cellPerThreadX, WIDTH);
-    int startY = y*cellPerThreadY + 1;
-    int endY = min(startY + cellPerThreadY, HEIGHT);
+    int startY = x*cellPerThreadX + 1;
+    int endY = min(startY + cellPerThreadX, WIDTH);
+    int startX = y*cellPerThreadY + 1;
+    int endX = min(startX + cellPerThreadY, HEIGHT);
 
     T D, delta_P;
     int thread_nodivergence = 1;
