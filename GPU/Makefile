@@ -17,7 +17,7 @@ INCLUDES ?=
 ALL_CXXFLAGS =
 #CCFLAGS = -ccbin $(GCC) -m64
 CCFLAGS_DEBUG = -ccbin $(CXX) -m64 --device-debug -g
-CCFLAGS_RELEASE = -ccbin $(CXX) -m64 -O3 --use_fast_math
+CCFLAGS_RELEASE = -ccbin $(CXX) -m64 -O3 --use_fast_math -lineinfo #-G -g
 ALL_CXXFLAGS += $(CCFLAGS_RELEASE)
 ifneq (,$(CXXFLAGS))
     ALL_CXXFLAGS += -Xcompiler $(CXXFLAGS)
@@ -35,7 +35,7 @@ LDFLAGS ?= -arch=sm_35 -rdc=true -lcudadevrt
 hydrodynamic-flow-cuda: hydrodynamic-flow-cuda.o
 	$(NVCC) $(ALL_CXXFLAGS) $(LDFLAGS) $(LIBS) $(INCLUDES) -o $@ $<
 
-hydrodynamic-flow-cuda.o: hydrodynamic-flow-cuda.cu
+hydrodynamic-flow-cuda.o: hydrodynamic-flow-cuda.cu common.hpp
 	$(NVCC) $(ALL_CXXFLAGS) $(INCLUDES) $(GENCODE_FLAGS) -o $@ -c $<
 
 .PHONY: clean
