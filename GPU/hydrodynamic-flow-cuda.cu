@@ -25,9 +25,9 @@
 
 #define SWAP(x, y) (x ^= y ^= x ^= y);
 
-#define STRIDE 128
-#define WIDTH 120
-#define HEIGHT 120
+#define STRIDE 1024
+#define WIDTH 1016
+#define HEIGHT 1016
 
 #define OBSTACLE_MIN_X 25
 #define OBSTACLE_MAX_X 60
@@ -514,7 +514,7 @@ int main()
                                OBSTACLE_MIN_Y, OBSTACLE_MAX_Y,
                                1.f, 0.0f );
     T dx = .01, dy = .01, dt = .0001;
-    T total_time = 900*dt, print_step = 100*dt;
+    T total_time = 3*dt, print_step = 1*dt;
     T beta0 = 1.7f;
 
     flow<T, SimpleBoundary<T> >(total_time, print_step, dt, dx, dy, beta0, sb);
