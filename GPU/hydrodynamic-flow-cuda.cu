@@ -320,9 +320,9 @@ void time_step(T *uc, T *vc, T *P, T *un, T *vn,
         do {
             // printf("Iteration %d\r", ++iteration);
 
-            hnodivergence = 1;
-            //nodivergence = 1;
-            cudaMemcpy(nodivergence, &hnodivergence, sizeof(int), cudaMemcpyHostToDevice);
+            //hnodivergence = 1;
+            //*nodivergence = 1;
+            cudaMemsetAsync(nodivergence, 1, sizeof(int), 0);
 
             adjust_puv<<<dimGrid, dimBlock>>>(uc, vc, P, un, vn, dt, dx, dy, beta, nodivergence, bound, true);
             cudaDeviceSynchronize();
@@ -462,8 +462,8 @@ void flow(T total_time, T print_step, T dt, T dx, T dy, T beta0, BoundaryCond &b
         std::swap(vc, vn);
 
         // if (accumulate_time >= last_printed + print_step) {
-            cudaMemcpy(huc, uc, STRIDE*STRIDE*sizeof(T), cudaMemcpyDeviceToHost);
-            cudaMemcpy(hvc, vc, STRIDE*STRIDE*sizeof(T), cudaMemcpyDeviceToHost);
+            cudaMemcpyAsync(huc, uc, STRIDE*STRIDE*sizeof(T), cudaMemcpyDeviceToHost, 0);
+            cudaMemcpyAsync(hvc, vc, STRIDE*STRIDE*sizeof(T), cudaMemcpyDeviceToHost, 0);
             // cudaDeviceSynchronize();
             last_printed += print_step;
             print_velocity(huc, hvc, index++);
