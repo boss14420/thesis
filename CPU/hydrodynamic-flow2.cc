@@ -206,15 +206,15 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn,
             } else {
                 D = 1/dx * (un[INDEXU(i+1,j)] - un[INDEXU(i,j)])
                     +1/dy * (vn[INDEXV(i,j+1)] - vn[INDEXV(i,j)]);
-                if (fabs(D) > Dtolerance) {
+                //if (fabs(D) > Dtolerance) {
                     delta_P = -beta * D;
                     P[INDEXP(i,j)] += delta_P;
                     un[INDEXU(i,j)] -= (dt/dx)*delta_P;
                     un[INDEXU(i+1,j)] += (dt/dx)*delta_P;
                     vn[INDEXV(i,j)] -= (dt/dy)*delta_P;
                     vn[INDEXV(i,j+1)] += (dt/dy)*delta_P;
-                    nodivergence = 0;
-                }
+                    nodivergence &= (fabs(D) <= Dtolerance);
+                //}
             }
         }
     }
