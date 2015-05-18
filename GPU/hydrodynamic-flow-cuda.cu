@@ -44,6 +44,9 @@
 #define nu 0.1f
 #define Dtolerance 0.01f
 
+#define PAD (256/sizeof(T) - 2)
+//#define PAD 0
+
 int *nodivergence;
 //__device__ int nodivergence = 1;
 
@@ -341,16 +344,22 @@ void initialize(T* &ucurrent, T* &vcurrent, T* &unew, T* &vnew, T* &P, T* &huc, 
                 int* &nodivergence,
                 BoundaryCond bound)
 {
-    cudaMalloc(&ucurrent, STRIDE*STRIDE * sizeof(T));
-    cudaMalloc(&vcurrent, STRIDE*STRIDE * sizeof(T));
-    cudaMalloc(&unew, STRIDE*STRIDE * sizeof(T));
-    cudaMalloc(&vnew, STRIDE*STRIDE * sizeof(T));
-    cudaMalloc(&P, STRIDE*STRIDE * sizeof(T));
+    // aglinment on u[1], v[1]
+    cudaMalloc(&ucurrent, (PAD + STRIDE*STRIDE) * sizeof(T));
+    cudaMalloc(&vcurrent, (PAD + STRIDE*STRIDE) * sizeof(T));
+    cudaMalloc(&unew, (PAD + STRIDE*STRIDE) * sizeof(T));
+    cudaMalloc(&vnew, (PAD + STRIDE*STRIDE) * sizeof(T));
+    cudaMalloc(&P, (PAD + STRIDE*STRIDE) * sizeof(T));
+    ucurrent += PAD;
+    vcurrent += PAD;
+    unew += PAD;
+    vnew += PAD;
+    P += PAD;
     // cudaMemset(ucurrent, 0, STRIDE*STRIDE * sizeof(T));
     // cudaMemset(vcurrent, 0, STRIDE*STRIDE * sizeof(T));
-    cudaMemset(unew, 0, STRIDE*STRIDE * sizeof(T));
-    cudaMemset(vnew, 0, STRIDE*STRIDE * sizeof(T));
-    cudaMemset(P, 0, STRIDE*STRIDE * sizeof(T));
+    cudaMemsetAsync(unew, 0, STRIDE*STRIDE * sizeof(T), 0);
+    cudaMemsetAsync(vnew, 0, STRIDE*STRIDE * sizeof(T), 0);
+    cudaMemsetAsync(P, 0, STRIDE*STRIDE * sizeof(T), 0);
 
     cudaMalloc(&nodivergence, sizeof(*nodivergence));
 
@@ -362,8 +371,10 @@ void initialize(T* &ucurrent, T* &vcurrent, T* &unew, T* &vnew, T* &P, T* &huc, 
     // update_boundary<<<dimGrid2, dimBlock>>>(ucurrent, vcurrent, P, bound);
     // cudaDeviceSynchronize();
 
-    huc = (T*) std::malloc(STRIDE * STRIDE * sizeof(T));
-    hvc = (T*) std::malloc(STRIDE * STRIDE * sizeof(T));
+    huc = (T*) std::malloc((PAD + STRIDE * STRIDE) * sizeof(T));
+    hvc = (T*) std::malloc((PAD + STRIDE * STRIDE) * sizeof(T));
+    huc += PAD;
+    hvc += PAD;
     std::memset(huc, 0, STRIDE * STRIDE * sizeof(T));
     std::memset(hvc, 0, STRIDE * STRIDE * sizeof(T));
     for (int j = 0; j <= HEIGHT; ++j) {
@@ -373,22 +384,22 @@ void initialize(T* &ucurrent, T* &vcurrent, T* &unew, T* &vnew, T* &P, T* &huc, 
 
     // cudaMemcpy(huc, ucurrent, STRIDE*STRIDE*sizeof(T), cudaMemcpyDeviceToHost);
     // cudaMemcpy(hvc, vcurrent, STRIDE*STRIDE*sizeof(T), cudaMemcpyDeviceToHost);
-    cudaMemcpy(ucurrent, huc, STRIDE*STRIDE*sizeof(T), cudaMemcpyHostToDevice);
-    cudaMemcpy(vcurrent, hvc, STRIDE*STRIDE*sizeof(T), cudaMemcpyHostToDevice);
+    cudaMemcpyAsync(ucurrent, huc, STRIDE*STRIDE*sizeof(T), cudaMemcpyHostToDevice, 0);
+    cudaMemcpyAsync(vcurrent, hvc, STRIDE*STRIDE*sizeof(T), cudaMemcpyHostToDevice, 0);
     // cudaDeviceSynchronize();
 }
 
 template <typename T>
 void freememory(T* ucurrent, T* vcurrent, T* unew, T* vnew, T* P, T* huc, T* hvc, int *nodivergence)
 {
-    cudaFree(ucurrent);
-    cudaFree(vcurrent);
-    cudaFree(unew);
-    cudaFree(vnew);
-    cudaFree(P);
+    cudaFree(ucurrent - PAD);
+    cudaFree(vcurrent - PAD);
+    cudaFree(unew - PAD);
+    cudaFree(vnew - PAD);
+    cudaFree(P - PAD);
     cudaFree(nodivergence);
-    std::free(huc);
-    std::free(hvc);
+    std::free(huc - PAD);
+    std::free(hvc - PAD);
 }
 
 template <typename T>
