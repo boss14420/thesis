@@ -241,40 +241,43 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn,
 
     T D, delta_P;
     int thread_nodivergence = 1;
-    typename double_vec<T>::type u12; // coalesced access u
+    //typename double_vec<T>::type u12; // coalesced access u
     T *vij, *vijp1;
     T *uij, *uip1j;
 
-    for (int j = startY; j < endY; ++j, shift = 1-shift) {
-        for (int i = startX + shift; i < endX; i += 2) {
-            if (bound.isObstacle(i, j)) {
+    //for (int j = startY; j < endY; ++j, shift = 1-shift) {
+    //    for (int i = startX + shift; i < endX; i += 2) {
+    int i = startX + shift;
+    int j = startY;
+            if (j >= endY || i >= endX || bound.isObstacle(i, j)) {
                 //P[INDEXP(i, j)] = 0;
             } else {
-                //u12     = *(float2*) (un + INDEXU(i, j)); // u12 = { u(i, j), u(i+1, j) }
-                //uij     = un + INDEXU(i, j);
-                //uip1j   = un + INDEXU(i+1, j);
-                //vij     = vn + INDEXV(i, j);
-                //vijp1   = vn + INDEXV(i, j+1);
-                D = 1/dx * (un[INDEXU(i+1,j)] - un[INDEXU(i,j)])
-                    +1/dy * (vn[INDEXV(i,j+1)] - vn[INDEXV(i,j)]);
+                uij     = un + INDEXU(i, j);
+                uip1j   = un + INDEXU(i+1, j);
+                //u12     = *((float2*) uij); // u12 = { u(i, j), u(i+1, j) }
+                vij     = vn + INDEXV(i, j);
+                vijp1   = vn + INDEXV(i, j+1);
+                //D = 1/dx * (un[INDEXU(i+1,j)] - un[INDEXU(i,j)])
+                //    +1/dy * (vn[INDEXV(i,j+1)] - vn[INDEXV(i,j)]);
                 //D = 1/dx * (u12.y - u12.x) + 1/dy * (*vijp1 - *vij);
-                //D = 1/dx * (*uip1j - *uij) + 1/dy * (*vijp1 - *vij);
-                if (fabs(D) > Dtolerance) {
+                D = 1/dx * (*uip1j - *uij) + 1/dy * (*vijp1 - *vij);
+                //if (fabs(D) > Dtolerance) {
                     delta_P = -beta * D;
                     P[INDEXP(i,j)] += delta_P;
-                    un[INDEXU(i,j)] -= (dt/dx)*delta_P;
-                    //*uij            -= (dt/dx)*delta_P;
-                    un[INDEXU(i+1,j)] += (dt/dx)*delta_P;
-                    //*uip1j          += (dt/dx)*delta_P;
-                    //*vij            -= (dt/dy)*delta_P;
-                    //*vijp1          += (dt/dy)*delta_P;
-                    vn[INDEXV(i,j)] -= (dt/dy)*delta_P;
-                    vn[INDEXV(i,j+1)] += (dt/dy)*delta_P;
-                    thread_nodivergence = 0;
-                }
+                    //un[INDEXU(i,j)] -= (dt/dx)*delta_P;
+                    *uij            -= (dt/dx)*delta_P;
+                    //un[INDEXU(i+1,j)] += (dt/dx)*delta_P;
+                    *uip1j          += (dt/dx)*delta_P;
+                    *vij            -= (dt/dy)*delta_P;
+                    *vijp1          += (dt/dy)*delta_P;
+                    //vn[INDEXV(i,j)] -= (dt/dy)*delta_P;
+                    //vn[INDEXV(i,j+1)] += (dt/dy)*delta_P;
+                    //thread_nodivergence = 0;
+                    thread_nodivergence &= (fabs(D) <= Dtolerance);
+                //}
             }
-        }
-    }
+    //    }
+    //}
 
     //int warp_nodivergence = __all(thread_nodivergence);
     // first thread in a warp
