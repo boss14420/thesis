@@ -1,4 +1,5 @@
-all: hydrodynamic-flow-cuda
+TARGETS = hydrodynamic-flow-cuda hydrodynamic-flow-cuda-smem
+all: $(TARGETS)
 
 CXX = g++
 #CXX = g++-4.7
@@ -32,11 +33,13 @@ GENCODE_FLAGS   := $(GENCODE_SM20) $(GENCODE_SM30)
 #LDFLAGS = -locelot
 LDFLAGS ?= -arch=sm_35 -rdc=true -lcudadevrt
 
-hydrodynamic-flow-cuda: hydrodynamic-flow-cuda.o
-	$(NVCC) $(ALL_CXXFLAGS) $(LDFLAGS) $(LIBS) $(INCLUDES) -o $@ $<
+OBJS = $(TARGETS).o
 
-hydrodynamic-flow-cuda.o: hydrodynamic-flow-cuda.cu common.hpp
+%.o: %.cu common.hpp
 	$(NVCC) $(ALL_CXXFLAGS) $(INCLUDES) $(GENCODE_FLAGS) -o $@ -c $<
+
+$(TARGETS): % : %.o
+	$(NVCC) $(ALL_CXXFLAGS) $(LDFLAGS) $(LIBS) $(INCLUDES) -o $@ $<
 
 .PHONY: clean
 
