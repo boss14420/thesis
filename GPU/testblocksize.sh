@@ -22,7 +22,7 @@ set -o nounset                              # Treat unset variables as an error
 PROG_HOME="$(dirname $0)"
 PROG="$PROG_HOME/hydrodynamic-flow-cuda"
 SRCFILE="$PROG.cu"
-RESFILE="$PROG_HOME/threadsizetest.csv"
+RESFILE="$PROG_HOME/testblocksize.csv"
 
 export LC_NUMERIC="en_US.UTF-8"
 
@@ -53,7 +53,7 @@ do
 			t3=$(/usr/bin/time -f "%e" "$PROG" 2>&1 >/dev/null)
 			TIME=$(echo "($t1+$t2+$t3)/3" | bc -l)
 	                printf "%.02f,  avg: %.03f\n" $t3 $TIME
-			printf "%.02f,%.02f,%.03f\n" $X $Y $TIME >> "$RESFILE"
+			printf "%2s,%2s,%.03f\n" $X $Y $TIME >> "$RESFILE"
 		fi
     done
 done
