@@ -22,13 +22,16 @@ set -o nounset                              # Treat unset variables as an error
 PROG_HOME="$(dirname $0)"
 PROG="$PROG_HOME/hydrodynamic-flow-cuda"
 SRCFILE="$PROG.cu"
-RESFILE="$PROG_HOME/blocktest.txt"
+RESFILE="$PROG_HOME/threadsizetest.csv"
 
 export LC_NUMERIC="en_US.UTF-8"
 
-rm -rf "$RESFILE"
+printf "X,Y,time\n" > "$RESFILE"
 sed -rie "s/^#define cellPerThreadX .*/#define cellPerThreadX 2/" "$SRCFILE"
 sed -rie "s/^#define cellPerThreadY .*/#define cellPerThreadY 8/" "$SRCFILE"
+sed -rie "s/^#define STRIDE .*/#define STRIDE 1024/" "$SRCFILE"
+sed -rie "s/^#define WIDTH .*/#define WIDTH 1023/" "$SRCFILE"
+sed -rie "s/^#define HEIGHT .*/#define HEIGHT 1023/" "$SRCFILE"
 
 for X in 1 2 4 8 16 32
 do
@@ -48,7 +51,7 @@ do
 			t3=$(/usr/bin/time -f "%e" "$PROG" 2>&1 >/dev/null)
 			TIME=$(echo "($t1+$t2+$t3)/3" | bc -l)
 			printf "%.02f, %.02f, %.02f,  avg: %.03f\n" $t1 $t2 $t3 $TIME
-			printf "%2sx%2s: %.03f\n" $X $Y $TIME >> "$RESFILE"
+			printf "%.02f,%.02f,%.03f\n" $X $Y $TIME >> "$RESFILE"
 		fi
     done
 done
