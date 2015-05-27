@@ -34,11 +34,12 @@ sed -rie "s/^#define STRIDE .*/#define STRIDE 1024/" "$SRCFILE"
 sed -rie "s/^#define WIDTH .*/#define WIDTH 1023/" "$SRCFILE"
 sed -rie "s/^#define HEIGHT .*/#define HEIGHT 1023/" "$SRCFILE"
 
-printf "X/Y,"
+printf "X/Y" >> "$RESFILE"
 for X in 1 2 4 6 8 16 32
 do
-    printf "%2s" $X >> "$RESFILE"
+    printf ",%2s" $X >> "$RESFILE"
 done
+printf "\n" >> "$RESFILE"
 
 for Y in 1 2 4 6 8 16 32
 do
