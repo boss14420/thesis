@@ -45,12 +45,14 @@ do
 			make 2>&1 >/dev/null
 
 			t1=$(/usr/bin/time -f "%e" "$PROG" 2>&1 >/dev/null)
+	                printf "%.02f, " $t1
 			sleep 1
 			t2=$(/usr/bin/time -f "%e" "$PROG" 2>&1 >/dev/null)
+	                printf "%.02f, " $t2
 			sleep 1
 			t3=$(/usr/bin/time -f "%e" "$PROG" 2>&1 >/dev/null)
 			TIME=$(echo "($t1+$t2+$t3)/3" | bc -l)
-			printf "%.02f, %.02f, %.02f,  avg: %.03f\n" $t1 $t2 $t3 $TIME
+	                printf "%.02f,  avg: %.03f\n" $t3 $TIME1
 			printf "%.02f,%.02f,%.03f\n" $X $Y $TIME >> "$RESFILE"
 		fi
     done

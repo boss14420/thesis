@@ -63,7 +63,7 @@ do
 	sleep 1
 	t3=$(/usr/bin/time -f "%e" "./$PROG1" 2>&1 >/dev/null)
 	TIME1=$(echo "($t1+$t2+$t3)/3" | bc -l)
-	printf "%.02f,  avg: %.03f\n" $t1 $t2 $t3 $TIME1
+	printf "%.02f,  avg: %.03f\n" $t3 $TIME1
 	cd ..
 
 	# CPU
@@ -75,14 +75,14 @@ do
 	make 2>&1 >/dev/null
 
 	t1=$(/usr/bin/time -f "%e" "./$PROG2" 2>&1 >/dev/null)
-	printf "%.02f, " $t2
+	printf "%.02f, " $t1
 	sleep 1
 	t2=$(/usr/bin/time -f "%e" "./$PROG2" 2>&1 >/dev/null)
 	printf "%.02f, " $t2
 	sleep 1
 	t3=$(/usr/bin/time -f "%e" "./$PROG2" 2>&1 >/dev/null)
 	TIME2=$(echo "($t1+$t2+$t3)/3" | bc -l)
-	printf "%.02f,  avg: %.03f\n" $t1 $t2 $t3 $TIME2
+	printf "%.02f,  avg: %.03f\n" $t3 $TIME2
 	cd ..
 
 	ratio=$(echo "$TIME2 / $TIME1" | bc -l)
