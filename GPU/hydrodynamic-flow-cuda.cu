@@ -25,9 +25,9 @@
 
 #define SWAP(x, y) (x ^= y ^= x ^= y);
 
-#define STRIDE 4096
-#define WIDTH 4095
-#define HEIGHT 4095
+#define STRIDE 1024
+#define WIDTH 1023
+#define HEIGHT 1023
 
 #define OBSTACLE_MIN_X 25
 #define OBSTACLE_MAX_X 60
@@ -50,12 +50,12 @@
 int *nodivergence;
 //__device__ int nodivergence = 1;
 
-#define cellPerThreadX 2
-#define cellPerThreadY 8
+#define cellPerThreadX 32
+#define cellPerThreadY 32
 #define boundaryCellPerThreadX 16
 #define boundaryCellPerThreadY 16
-#define threadPerBlockX 16
-#define threadPerBlockY 16
+#define threadPerBlockX 32
+#define threadPerBlockY 8
 
 __const__ dim3 dimBlock(threadPerBlockX, threadPerBlockY);
 __const__ dim3 dimGrid( (((WIDTH + dimBlock.x - 1)/dimBlock.x) + cellPerThreadX - 1)/cellPerThreadX,
@@ -247,11 +247,11 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn,
     T *vij, *vijp1;
     T *uij, *uip1j;
 
-    //for (int j = startY; j < endY; ++j, shift = 1-shift) {
-    //    for (int i = startX + shift; i < endX; i += 2) {
-    int i = startX + shift;
-    int j = startY;
-            if (j >= endY || i >= endX || bound.isObstacle(i, j)) {
+    for (int j = startY; j < endY; ++j, shift = 1-shift) {
+        for (int i = startX + shift; i < endX; i += 2) {
+    //int i = startX + shift;
+    //int j = startY;
+            if (bound.isObstacle(i, j)) {
                 //P[INDEXP(i, j)] = 0;
             } else {
                 uij     = un + INDEXU(i, j);
@@ -278,8 +278,8 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn,
                     thread_nodivergence &= (fabs(D) <= Dtolerance);
                 //}
             }
-    //    }
-    //}
+        }
+    }
 
     //int warp_nodivergence = __all(thread_nodivergence);
     // first thread in a warp

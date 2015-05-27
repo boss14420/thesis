@@ -34,17 +34,17 @@ sed -rie "s/^#define STRIDE .*/#define STRIDE 1024/" "$SRCFILE"
 sed -rie "s/^#define WIDTH .*/#define WIDTH 1023/" "$SRCFILE"
 sed -rie "s/^#define HEIGHT .*/#define HEIGHT 1023/" "$SRCFILE"
 
-printf "X/Y" >> "$RESFILE"
-for X in 1 2 4 6 8 16 32
+printf "Y/X" >> "$RESFILE"
+for X in 1 2 4 8 16 32
 do
     printf ",%2s" $X >> "$RESFILE"
 done
 printf "\n" >> "$RESFILE"
 
-for Y in 1 2 4 6 8 16 32
+for Y in 1 2 4 8 16 32
 do
-    printf ",%2s" $Y >> "$RESFILE"
-    for X in 2 4 6 8 16 32
+    printf "%2s" $Y >> "$RESFILE"
+    for X in 1 2 4 8 16 32
     do
             if (( $X*$Y % 32 == 0 ))
             then
@@ -63,7 +63,9 @@ do
                     TIME=$(echo "($t1+$t2+$t3)/3" | bc -l)
                     printf "%.02f,  avg: %.03f\n" $t3 $TIME
                     printf ",%.03f" $TIME >> "$RESFILE"
-            fi
+            else
+                    printf ",nan" >> "$RESFILE"
+			fi
     done
     printf "\n" >> "$RESFILE"
 done
