@@ -25,9 +25,9 @@
 
 #define SWAP(x, y) (x ^= y ^= x ^= y);
 
-#define STRIDE 1024
-#define WIDTH 1016
-#define HEIGHT 1016
+#define STRIDE 512
+#define WIDTH 511
+#define HEIGHT 511
 
 #define OBSTACLE_MIN_X 25
 #define OBSTACLE_MAX_X 60
@@ -54,8 +54,8 @@ int *nodivergence;
 #define cellPerThreadY 1
 #define boundaryCellPerThreadX 16
 #define boundaryCellPerThreadY 16
-#define threadPerBlockX 16
-#define threadPerBlockY 16
+#define threadPerBlockX 32
+#define threadPerBlockY 1
 
 __const__ dim3 dimBlock(threadPerBlockX, threadPerBlockY);
 __const__ dim3 dimGrid( (((WIDTH + dimBlock.x - 1)/dimBlock.x) + cellPerThreadX - 1)/cellPerThreadX,
@@ -233,6 +233,7 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn,
 {
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int x0 = blockIdx.x * blockDim.x;
 
     int shift = (y % 2) ^ cellType;
 
@@ -240,6 +241,7 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn,
     int endX = min(startX + cellPerThreadX, WIDTH);
     int startY = y*cellPerThreadY + 1;
     int endY = min(startY + cellPerThreadY, HEIGHT);
+    int startX0 = x0*cellPerThreadX + 1;
 
 
     T D, delta_P;
@@ -250,37 +252,39 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn,
 
     int i = startX + shift;
     int j = startY;
-
-    if (j >= endY || i >= endX || bound.isObstacle(i, j)) return;
+    int i0 = startX0 + shift;
 
     //
     // load to shared memory
     //
 
-    __shared__ T us[2*threadPerBlockX][threadPerBlockY];
+    __shared__ T us[threadPerBlockY][2*threadPerBlockX];
     // load first half
-    us[threadIdx.x][threadIdx.y]                    = un[INDEXU(x + shift + 1, j)];
+    us[threadIdx.y][threadIdx.x]                    = un[INDEXU(i0+threadIdx.x, j)];
     // load second half
-    us[threadPerBlockX + threadIdx.x][threadIdx.y]  = un[INDEXU(threadPerBlockX + x + shift + 1, j)];
+    us[threadIdx.y][threadPerBlockX+threadIdx.x]  	= un[INDEXU(threadPerBlockX+i0+threadIdx.x, j)];
 
     __syncthreads();
 
+    if (j < endY && i < endX && !bound.isObstacle(i, j)) {
+			uij     = &us[threadIdx.y][2*threadIdx.x];
+			uip1j   = &us[threadIdx.y][2*threadIdx.x+1];
 
-    uij     = &us[2*threadIdx.x][threadIdx.y];
-    uip1j   = &us[2*threadIdx.x+1][threadIdx.y];
+			//uij     = un + INDEXU(i, j);
+			//uip1j   = un + INDEXU(i+1, j);
+			vij     = vn + INDEXV(i, j);
+			vijp1   = vn + INDEXV(i, j+1);
 
-    vij     = vn + INDEXV(i, j);
-    vijp1   = vn + INDEXV(i, j+1);
+			D = 1/dx * (*uip1j - *uij) + 1/dy * (*vijp1 - *vij);
 
-    D = 1/dx * (*uip1j - *uij) + 1/dy * (*vijp1 - *vij);
-
-    delta_P = -beta * D;
-    P[INDEXP(i,j)] += delta_P;
-    *uij            -= (dt/dx)*delta_P;
-    *uip1j          += (dt/dx)*delta_P;
-    *vij            -= (dt/dy)*delta_P;
-    *vijp1          += (dt/dy)*delta_P;
-    thread_nodivergence &= (fabs(D) <= Dtolerance);
+			delta_P = -beta * D;
+			P[INDEXP(i,j)] += delta_P;
+			*uij            -= (dt/dx)*delta_P;
+			*uip1j          += (dt/dx)*delta_P;
+			*vij            -= (dt/dy)*delta_P;
+			*vijp1          += (dt/dy)*delta_P;
+			thread_nodivergence &= (fabs(D) <= Dtolerance);
+	}
 
     int bn = __syncthreads_and(thread_nodivergence);
 
@@ -289,9 +293,9 @@ void adjust_puv(T const *uc, T const *vc, T *P, T *un, T *vn,
     //
 
     // store first half
-    un[INDEXU(x + shift + 1, j)]                    =   us[threadIdx.x][threadIdx.y];
+    un[INDEXU(i0+threadIdx.x, j)]                  =   us[threadIdx.y][threadIdx.x];
     // store second half
-    un[INDEXU(threadPerBlockX + x + shift + 1, j)]  =   us[threadPerBlockX + threadIdx.x][threadIdx.y];
+    un[INDEXU(threadPerBlockX+i0+threadIdx.x, j)]  =   us[threadIdx.y][threadPerBlockX+threadIdx.x];
 
     // first thread in a block
     if ( (threadIdx.y == 0) && (threadIdx.x == 0) ) {

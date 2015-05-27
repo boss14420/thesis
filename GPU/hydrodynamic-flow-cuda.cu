@@ -25,9 +25,9 @@
 
 #define SWAP(x, y) (x ^= y ^= x ^= y);
 
-#define STRIDE 1024
-#define WIDTH 1016
-#define HEIGHT 1016
+#define STRIDE 4096
+#define WIDTH 4095
+#define HEIGHT 4095
 
 #define OBSTACLE_MIN_X 25
 #define OBSTACLE_MAX_X 60
@@ -51,11 +51,13 @@ int *nodivergence;
 //__device__ int nodivergence = 1;
 
 #define cellPerThreadX 2
-#define cellPerThreadY 1
+#define cellPerThreadY 8
 #define boundaryCellPerThreadX 16
 #define boundaryCellPerThreadY 16
+#define threadPerBlockX 16
+#define threadPerBlockY 16
 
-__const__ dim3 dimBlock(16, 16);
+__const__ dim3 dimBlock(threadPerBlockX, threadPerBlockY);
 __const__ dim3 dimGrid( (((WIDTH + dimBlock.x - 1)/dimBlock.x) + cellPerThreadX - 1)/cellPerThreadX,
               (((HEIGHT+ dimBlock.y - 1)/dimBlock.y) + cellPerThreadY - 1)/cellPerThreadY
             );
@@ -514,7 +516,7 @@ int main()
                                OBSTACLE_MIN_Y, OBSTACLE_MAX_Y,
                                1.f, 0.0f );
     T dx = .01, dy = .01, dt = .0001;
-    T total_time = 3*dt, print_step = 1*dt;
+    T total_time = 900*dt, print_step = 100*dt;
     T beta0 = 1.7f;
 
     flow<T, SimpleBoundary<T> >(total_time, print_step, dt, dx, dy, beta0, sb);

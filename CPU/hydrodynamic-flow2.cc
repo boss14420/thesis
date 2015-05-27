@@ -25,9 +25,9 @@
 
 #define SWAP(x, y) (x ^= y ^= x ^= y);
 
-#define STRIDE 2048
-#define WIDTH 2040
-#define HEIGHT 2040
+#define STRIDE 4096
+#define WIDTH 4095
+#define HEIGHT 4095
 
 #define OBSTACLE_MIN_X 25
 #define OBSTACLE_MAX_X 60
